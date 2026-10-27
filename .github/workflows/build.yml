@@ -44,7 +44,7 @@ jobs:
       - name: Package
         id: package
         run: |
-          set -euo pipefail
+          set -euox pipefail
 
           APP="$RUNNER_TEMP/DerivedData/Build/Products/Release/FileCompare.app"
           VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
