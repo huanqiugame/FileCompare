@@ -67,7 +67,7 @@ jobs:
           echo "Creating DMG"
           cp -R "$APP" staging/
           ln -s /Applications staging/Applications
-          hdiutil create -volname "FileCompare" -srcfolder staging -ov -format UDZO "dist/${NAME}.dmg"
+          diskutil image create from --format UDZO --volumeName FileCompare staging "dist/${NAME}.dmg"
 
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
