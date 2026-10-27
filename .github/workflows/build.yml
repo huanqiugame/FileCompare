@@ -1,0 +1,132 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and package
+    runs-on: xcode-27
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcode-select -p
+          xcodebuild -version
+
+      - name: Build
+        run: |
+          xcodebuild \
+            -project FileCompare.xcodeproj \
+            -scheme FileCompare \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            build
+
+      - name: Package
+        id: package
+        run: |
+          set -euo pipefail
+
+          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release/FileCompare.app"
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
+          BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
+
+          codesign --verify --strict "$APP"
+
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            NAME="FileCompare-${GITHUB_REF_NAME#v}"
+          else
+            NAME="FileCompare-${VERSION}-${GITHUB_SHA::7}"
+          fi
+
+          mkdir -p dist staging
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "dist/${NAME}.zip"
+
+          cp -R "$APP" staging/
+          ln -s /Applications staging/Applications
+          hdiutil create -quiet -volname "FileCompare" -srcfolder staging -ov -format UDZO "dist/${NAME}.dmg"
+
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "build=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### 构建产物"
+            echo
+            echo "| 项目 | 值 |"
+            echo "| --- | --- |"
+            echo "| 版本 | ${VERSION} (${BUILD_NUMBER}) |"
+            echo "| 架构 | $(lipo -archs "$APP/Contents/MacOS/FileCompare") |"
+            echo
+            echo "| 文件 | 大小 |"
+            echo "| --- | --- |"
+            ls -lh dist | awk 'NR > 1 { print "| " $9 " | " $5 " |" }'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          ls -lh dist
+
+      - name: Check tag against project version
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if [[ "${TAG#v}" != "$VERSION" ]]; then
+            echo "::warning::标签 $TAG 与 MARKETING_VERSION $VERSION 不一致，发布包名称以标签为准。"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: dist/*
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          {
+            cat .github/release-notes.md
+            echo
+            echo "## 本次提交"
+            echo
+            previous_tag=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+            if [[ -n "$previous_tag" ]]; then
+              git log --no-merges --pretty=format:'- %s' "${previous_tag}..HEAD"
+            else
+              git log --no-merges --pretty=format:'- %s' HEAD
+            fi
+            echo
+          } > "$RUNNER_TEMP/release-notes.md"
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --title "FileCompare ${GITHUB_REF_NAME#v}" \
+              --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
