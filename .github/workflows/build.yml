@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -44,12 +44,13 @@ jobs:
       - name: Package
         id: package
         run: |
-          set -euox pipefail
+          set -euo pipefail
 
           APP="$RUNNER_TEMP/DerivedData/Build/Products/Release/FileCompare.app"
           VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
           BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
 
+          echo "Verifying signature"
           codesign --verify --strict "$APP"
 
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
@@ -59,11 +60,14 @@ jobs:
           fi
 
           mkdir -p dist staging
+
+          echo "Creating ZIP"
           ditto -c -k --sequesterRsrc --keepParent "$APP" "dist/${NAME}.zip"
 
+          echo "Creating DMG"
           cp -R "$APP" staging/
           ln -s /Applications staging/Applications
-          hdiutil create -quiet -volname "FileCompare" -srcfolder staging -ov -format UDZO "dist/${NAME}.dmg"
+          hdiutil create -volname "FileCompare" -srcfolder staging -ov -format UDZO "dist/${NAME}.dmg"
 
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
@@ -95,7 +99,7 @@ jobs:
           fi
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.package.outputs.name }}
           path: dist/*
