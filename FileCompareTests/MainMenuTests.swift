@@ -25,6 +25,7 @@ struct MainMenuTests {
         let expected: [(Selector, String, String)] = [
             (#selector(AppCoordinator.openLeftFile(_:)), "o", "sidebar.leading"),
             (#selector(AppCoordinator.openRightFile(_:)), "O", "sidebar.trailing"),
+            (#selector(AppCoordinator.revealInFinder(_:)), "R", "folder"),
             (#selector(AppCoordinator.reloadComparison(_:)), "r", "arrow.clockwise"),
             (#selector(AppCoordinator.find(_:)), "f", "magnifyingglass"),
             (#selector(AppCoordinator.swapSides(_:)), "x", "arrow.left.arrow.right"),

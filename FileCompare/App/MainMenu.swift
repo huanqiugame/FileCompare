@@ -24,6 +24,7 @@ enum MainMenu {
         let icons: [Selector: String] = [
             #selector(AppCoordinator.openLeftFile(_:)): "sidebar.leading",
             #selector(AppCoordinator.openRightFile(_:)): "sidebar.trailing",
+            #selector(AppCoordinator.revealInFinder(_:)): "folder",
             #selector(AppCoordinator.reloadComparison(_:)): "arrow.clockwise",
             #selector(AppCoordinator.find(_:)): "magnifyingglass",
             #selector(AppCoordinator.findNext(_:)): "chevron.down",
@@ -124,6 +125,14 @@ enum MainMenu {
             title: String(localized: "menu.file.open_right", defaultValue: "Open Right File…"),
             action: #selector(AppCoordinator.openRightFile(_:)),
             key: "O",
+            modifiers: [.command, .shift],
+            coordinator: coordinator
+        ))
+        menu.addItem(.separator())
+        menu.addItem(customItem(
+            title: String(localized: "menu.file.reveal_in_finder", defaultValue: "Reveal in Finder"),
+            action: #selector(AppCoordinator.revealInFinder(_:)),
+            key: "R",
             modifiers: [.command, .shift],
             coordinator: coordinator
         ))

@@ -229,6 +229,13 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
         activeSession?.reload()
     }
 
+    @objc func revealInFinder(_ sender: Any?) {
+        guard let session = activeSession else { return }
+        let urls = [session.leftURL, session.rightURL].compactMap { $0 }
+        guard !urls.isEmpty else { return }
+        NSWorkspace.shared.activateFileViewerSelecting(urls)
+    }
+
     @objc func toggleAutoReload(_ sender: Any?) {
         settings.autoReload.toggle()
         for controller in comparisonControllers.values {
@@ -313,6 +320,8 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
         switch action {
         case #selector(reloadComparison(_:)):
             return true
+        case #selector(revealInFinder(_:)):
+            return session.leftURL != nil || session.rightURL != nil
         case #selector(find(_:)):
             return true
         case #selector(findNext(_:)), #selector(findPrevious(_:)):

@@ -1,8 +1,10 @@
 import AppKit
 import SwiftUI
 
-/// A clickable filename. Hovering reveals the real file icon, which can be
-/// dragged out as a file; clicking the name opens the file picker for that side.
+/// A filename flanked by a fixed file icon on the left and a chevron on the
+/// right. Both appear as soon as the label is hovered. The icon can be dragged
+/// out as a file; clicking or dragging the name opens the picker / moves the
+/// window.
 struct FileTitleLabel: View {
     let url: URL?
     let displayName: String
@@ -11,50 +13,108 @@ struct FileTitleLabel: View {
 
     @State private var isHovering = false
 
-    var body: some View {
-        HStack(spacing: 0) {
-            if let url {
-                fileIcon(for: url)
-                    .frame(width: isHovering ? 15 : 0, height: 15)
-                    .opacity(isHovering ? 1 : 0)
-                    .clipped()
-                    .padding(.trailing, isHovering ? 5 : 0)
-                    .onDrag {
-                        NSItemProvider(contentsOf: url) ?? NSItemProvider()
-                    }
-                    .onTapGesture(perform: onPick)
-                    .accessibilityHidden(true)
-            }
+    private let iconSize: CGFloat = 13
+    private let chevronWidth: CGFloat = 13
 
-            Button(action: onPick) {
-                Text(displayName)
-                    .font(.system(size: 13, weight: .medium))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .foregroundStyle(isHovering ? Color.primary : Color.primary.opacity(0.88))
-                    .frame(
-                        minWidth: 0,
-                        maxWidth: 260,
-                        alignment: side == .left ? .trailing : .leading
-                    )
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
+    var body: some View {
+        HStack(spacing: 5) {
+            icon
+            nameAndChevron
         }
-        .padding(.vertical, 5)
-        .contentShape(.rect)
-        .onHover { hovering in
-            isHovering = hovering
+        .overlay {
+            LabelHoverTrackingView(onHoverChanged: { isHovering = $0 })
         }
+        .frame(maxWidth: .infinity, alignment: side == .left ? .trailing : .leading)
         .help(url?.path ?? displayName)
-        .animation(.easeInOut(duration: 0.16), value: isHovering)
     }
 
-    private func fileIcon(for url: URL) -> some View {
-        Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-            .resizable()
-            .interpolation(.high)
-            .aspectRatio(contentMode: .fit)
-            .frame(width: 15, height: 15)
+    @ViewBuilder
+    private var icon: some View {
+        if let url {
+            FileIconDragView(url: url, size: iconSize)
+                .frame(width: iconSize, height: iconSize)
+                .opacity(isHovering ? 1 : 0)
+                .accessibilityHidden(true)
+        } else {
+            Color.clear
+                .frame(width: iconSize, height: iconSize)
+        }
+    }
+
+    private var nameAndChevron: some View {
+        HStack(spacing: 5) {
+            name
+            chevron
+        }
+        .overlay {
+            FilenameInteractionView(onClick: onPick)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var name: some View {
+        Text(displayName)
+            .font(.system(size: 13, weight: .medium))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .foregroundStyle(isHovering ? Color.primary : Color.primary.opacity(0.88))
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(Text(displayName))
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.down")
+            .font(.system(size: 8, weight: .bold))
+            .foregroundStyle(.secondary)
+            .frame(width: chevronWidth, height: iconSize)
+            .opacity(isHovering ? 1 : 0)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Tracks hover over the whole label without taking part in hit testing, so it
+/// works over the AppKit icon and the filename interaction view and keeps the
+/// hover state continuous while the pointer moves between them.
+private struct LabelHoverTrackingView: NSViewRepresentable {
+    let onHoverChanged: (Bool) -> Void
+
+    func makeNSView(context: Context) -> TrackingView {
+        let view = TrackingView()
+        view.onHoverChanged = onHoverChanged
+        return view
+    }
+
+    func updateNSView(_ nsView: TrackingView, context: Context) {
+        nsView.onHoverChanged = onHoverChanged
+    }
+
+    final class TrackingView: NSView {
+        var onHoverChanged: ((Bool) -> Void)?
+        private var hoverTrackingArea: NSTrackingArea?
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let hoverTrackingArea {
+                removeTrackingArea(hoverTrackingArea)
+            }
+            let area = NSTrackingArea(
+                rect: bounds,
+                options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            )
+            addTrackingArea(area)
+            hoverTrackingArea = area
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            onHoverChanged?(true)
+        }
+
+        override func mouseExited(with event: NSEvent) {
+            onHoverChanged?(false)
+        }
     }
 }
