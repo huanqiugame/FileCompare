@@ -27,6 +27,11 @@
 			path = FileCompare;
 			sourceTree = "<group>";
 		};
+		1790C87430918DD00004AE42 /* docs */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = docs;
+			sourceTree = "<group>";
+		};
 		17E293AD3090935A00C9ABAB /* FileCompareTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = FileCompareTests;
@@ -53,6 +58,7 @@
 			children = (
 				000000000000000000000010 /* FileCompare */,
 				17E293AD3090935A00C9ABAB /* FileCompareTests */,
+				1790C87430918DD00004AE42 /* docs */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
