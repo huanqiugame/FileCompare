@@ -22,6 +22,7 @@ enum MainMenu {
     /// Symbols are added alongside the actions that benefit from a visual cue.
     private static func applyMenuIcons(to mainMenu: NSMenu) {
         let icons: [Selector: String] = [
+            #selector(AppCoordinator.newLauncherWindow(_:)): "macwindow.badge.plus",
             #selector(AppCoordinator.openLeftFile(_:)): "sidebar.leading",
             #selector(AppCoordinator.openRightFile(_:)): "sidebar.trailing",
             #selector(AppCoordinator.revealInFinder(_:)): "folder",
@@ -115,6 +116,13 @@ enum MainMenu {
         let item = NSMenuItem()
         let menu = NSMenu(title: String(localized: "menu.file", defaultValue: "File"))
 
+        menu.addItem(customItem(
+            title: String(localized: "menu.file.new_window", defaultValue: "New Window"),
+            action: #selector(AppCoordinator.newLauncherWindow(_:)),
+            key: "n",
+            coordinator: coordinator
+        ))
+        menu.addItem(.separator())
         menu.addItem(customItem(
             title: String(localized: "menu.file.open_left", defaultValue: "Open Left File…"),
             action: #selector(AppCoordinator.openLeftFile(_:)),

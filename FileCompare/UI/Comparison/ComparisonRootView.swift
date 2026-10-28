@@ -42,7 +42,6 @@ struct ComparisonRootView: View {
                 ? { session.dismissFindBar() }
                 : nil
         )
-        .frame(minWidth: 560, minHeight: 360)
     }
 }
 

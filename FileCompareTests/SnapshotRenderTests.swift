@@ -129,6 +129,15 @@ struct SnapshotRenderTests {
             directory: directory
         )
 
+        let compact = ComparisonRootView(session: session) { _ in }
+            .environment(\.colorScheme, .light)
+        try renderInWindow(
+            compact,
+            name: "comparison-compact",
+            size: NSSize(width: 340, height: 180),
+            directory: directory
+        )
+
         let launcherModel = LauncherModel()
         launcherModel.set(leftURL, for: .left)
         launcherModel.set(rightURL, for: .right)

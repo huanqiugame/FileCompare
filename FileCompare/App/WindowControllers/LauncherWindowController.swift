@@ -3,10 +3,13 @@ import SwiftUI
 
 @MainActor
 final class LauncherWindowController: NSWindowController, NSWindowDelegate {
+    let model: LauncherModel
+
     private unowned let coordinator: AppCoordinator
 
     init(coordinator: AppCoordinator, model: LauncherModel) {
         self.coordinator = coordinator
+        self.model = model
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 700, height: 344),
@@ -25,10 +28,10 @@ final class LauncherWindowController: NSWindowController, NSWindowDelegate {
         let root = LauncherView(
             model: model,
             onPick: { side in
-                coordinator.pickFileForLauncher(side: side)
+                coordinator.pickFileForLauncher(side: side, model: model)
             },
             onCompare: {
-                coordinator.compareFromLauncher()
+                coordinator.compareFromLauncher(model)
             }
         )
         let hosting = NSHostingController(rootView: root)
@@ -38,7 +41,19 @@ final class LauncherWindowController: NSWindowController, NSWindowDelegate {
 
         super.init(window: window)
         window.delegate = self
-        window.center()
+    }
+
+    /// Centers the first launcher and cascades additional ones so Command-N
+    /// windows never open exactly on top of each other.
+    func position(cascadeIndex: Int) {
+        guard let window, let screen = window.screen ?? NSScreen.main else { return }
+        let visible = screen.visibleFrame
+        let offset = CGFloat(cascadeIndex % 6) * 28
+        let origin = NSPoint(
+            x: visible.midX - window.frame.width / 2 + offset,
+            y: visible.midY - window.frame.height / 2 - offset
+        )
+        window.setFrameOrigin(origin)
     }
 
     @available(*, unavailable)
@@ -57,6 +72,6 @@ final class LauncherWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        coordinator.launcherWillClose()
+        coordinator.launcherWillClose(self)
     }
 }

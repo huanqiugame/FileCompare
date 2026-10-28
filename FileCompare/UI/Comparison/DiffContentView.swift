@@ -37,7 +37,7 @@ struct DiffContentView: View {
 
     private func documentContent(_ document: DiffDocument) -> some View {
         GeometryReader { proxy in
-            let width = max(proxy.size.width, 320)
+            let width = max(proxy.size.width, 2)
             let fontSize = CGFloat(AppSettings.shared.fontSize)
             let showLineNumbers = AppSettings.shared.showLineNumbers
             let metrics = DiffRowMetrics(

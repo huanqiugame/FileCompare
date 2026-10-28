@@ -21,7 +21,6 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate {
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
         window.isMovableByWindowBackground = false
-        window.minSize = NSSize(width: 680, height: 420)
         window.backgroundColor = .textBackgroundColor
         window.collectionBehavior.insert(.fullScreenPrimary)
         window.tabbingMode = .disallowed
@@ -34,6 +33,7 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate {
         hosting.sizingOptions = []
         window.contentViewController = hosting
         window.setContentSize(NSSize(width: 1120, height: 760))
+        window.contentMinSize = NSSize(width: 340, height: 180)
 
         super.init(window: window)
         window.delegate = self

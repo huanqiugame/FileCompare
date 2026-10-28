@@ -23,6 +23,7 @@ struct MainMenuTests {
         }
 
         let expected: [(Selector, String, String)] = [
+            (#selector(AppCoordinator.newLauncherWindow(_:)), "n", "macwindow.badge.plus"),
             (#selector(AppCoordinator.openLeftFile(_:)), "o", "sidebar.leading"),
             (#selector(AppCoordinator.openRightFile(_:)), "O", "sidebar.trailing"),
             (#selector(AppCoordinator.revealInFinder(_:)), "R", "folder"),
@@ -41,5 +42,18 @@ struct MainMenuTests {
             #expect(found?.target === AppCoordinator.shared)
             _ = symbol
         }
+    }
+
+    @Test func newWindowMenuItemIsAvailableWithoutActiveSession() {
+        let menu = MainMenu.build(coordinator: AppCoordinator.shared)
+        let item = menu.items
+            .compactMap(\.submenu)
+            .flatMap(\.items)
+            .first { $0.action == #selector(AppCoordinator.newLauncherWindow(_:)) }
+
+        #expect(item != nil)
+        #expect(item?.keyEquivalent == "n")
+        #expect(item?.target === AppCoordinator.shared)
+        #expect(AppCoordinator.shared.validateMenuItem(item!))
     }
 }

@@ -8,9 +8,7 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
 
     private(set) var activeSession: ComparisonSession?
     private(set) var settings: AppSettings
-    private let launcherModel = LauncherModel()
-
-    private var launcherController: LauncherWindowController?
+    private var launcherControllers: [LauncherWindowController] = []
     private var comparisonControllers: [UUID: ComparisonWindowController] = [:]
     private var pendingOpenURLs: [URL] = []
     private var didStart = false
@@ -66,6 +64,7 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
 
     private func processOpen(urls: [URL]) {
         AppLog.lifecycle.notice("Processing \(urls.count) file(s) after launch")
+        dismissLaunchers()
         switch urls.count {
         case 0:
             return
@@ -85,38 +84,63 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
 
     // MARK: - Launcher
 
+    /// Shows a launcher window, reusing one that is already open instead of
+    /// stacking a new one. Used for file-open events and menu file picking.
     func showLauncher(left: URL? = nil, right: URL? = nil) {
+        let controller = reusableLauncherController() ?? makeLauncherController()
+
         if let left {
-            launcherModel.set(left, for: .left)
+            controller.model.set(left, for: .left)
         }
         if let right {
-            launcherModel.set(right, for: .right)
+            controller.model.set(right, for: .right)
         }
         AppLog.lifecycle.notice(
-            "Showing launcher: \(self.launcherModel.leftURL?.lastPathComponent ?? "nil", privacy: .public) / \(self.launcherModel.rightURL?.lastPathComponent ?? "nil", privacy: .public)"
+            "Showing launcher: \(controller.model.leftURL?.lastPathComponent ?? "nil", privacy: .public) / \(controller.model.rightURL?.lastPathComponent ?? "nil", privacy: .public)"
         )
 
-        if launcherController == nil {
-            launcherController = LauncherWindowController(coordinator: self, model: launcherModel)
-        }
-        launcherController?.window?.deminiaturize(nil)
-        launcherController?.showWindow(nil)
+        controller.window?.deminiaturize(nil)
+        controller.showWindow(nil)
     }
 
-    func compareFromLauncher() {
-        guard let left = launcherModel.leftURL, let right = launcherModel.rightURL else { return }
+    /// Creates an additional launcher window with its own file slots, so each
+    /// Command-N window can request a separate pair of files.
+    @discardableResult
+    private func makeLauncherController() -> LauncherWindowController {
+        let controller = LauncherWindowController(coordinator: self, model: LauncherModel())
+        controller.position(cascadeIndex: launcherControllers.count)
+        launcherControllers.append(controller)
+        return controller
+    }
+
+    /// Prefers a launcher the user can currently see; otherwise falls back to
+    /// the most recent one that was ordered out after starting a comparison.
+    private func reusableLauncherController() -> LauncherWindowController? {
+        launcherControllers.last(where: { $0.window?.isVisible == true })
+            ?? launcherControllers.last
+    }
+
+    private func dismissLaunchers() {
+        for controller in launcherControllers {
+            controller.window?.orderOut(nil)
+            controller.model.clearAll()
+        }
+    }
+
+    func compareFromLauncher(_ model: LauncherModel) {
+        guard let left = model.leftURL, let right = model.rightURL else { return }
+        let controller = launcherControllers.first { $0.model === model }
         openComparison(left: left, right: right)
-        launcherModel.clearAll()
-        launcherController?.window?.orderOut(nil)
+        model.clearAll()
+        controller?.window?.orderOut(nil)
     }
 
     func launcherDidBecomeKey() {
         activeSession = nil
     }
 
-    func launcherWillClose() {
-        launcherController = nil
-        launcherModel.clearAll()
+    func launcherWillClose(_ controller: LauncherWindowController) {
+        launcherControllers.removeAll { $0 === controller }
         activeSession = keyComparisonSession
     }
 
@@ -131,8 +155,6 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
         controller.position(cascadeIndex: comparisonControllers.count)
         comparisonControllers[session.id] = controller
 
-        launcherController?.window?.orderOut(nil)
-        launcherModel.clearAll()
         controller.showWindow(nil)
         NSApp.activate()
         session.load()
@@ -168,14 +190,9 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
         session.replace(side: side, with: url)
     }
 
-    func pickFileForLauncher(side: ComparisonSide) {
-        guard launcherController != nil else {
-            showLauncher()
-            pickFileForLauncher(side: side)
-            return
-        }
+    func pickFileForLauncher(side: ComparisonSide, model: LauncherModel) {
         guard let url = runOpenPanel() else { return }
-        launcherModel.set(url, for: side)
+        model.set(url, for: side)
     }
 
     private func runOpenPanel() -> URL? {
@@ -206,6 +223,10 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
 
     // MARK: - Menu actions
 
+    @objc func newLauncherWindow(_ sender: Any?) {
+        makeLauncherController().showWindow(nil)
+    }
+
     @objc func openLeftFile(_ sender: Any?) {
         openFileFromMenu(side: .left)
     }
@@ -219,10 +240,10 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
             pickFile(for: side, in: session)
             return
         }
-        if launcherController == nil {
-            showLauncher()
-        }
-        pickFileForLauncher(side: side)
+        let controller = reusableLauncherController() ?? makeLauncherController()
+        controller.window?.deminiaturize(nil)
+        controller.showWindow(nil)
+        pickFileForLauncher(side: side, model: controller.model)
     }
 
     @objc func reloadComparison(_ sender: Any?) {
@@ -312,6 +333,9 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
             return true
         }
         if action == #selector(openLeftFile(_:)) || action == #selector(openRightFile(_:)) {
+            return true
+        }
+        if action == #selector(newLauncherWindow(_:)) {
             return true
         }
 
