@@ -30,6 +30,8 @@ struct FileIconDragView: NSViewRepresentable {
         private var isDragging = false
         private var iconURL: URL?
         private var hoverTrackingArea: NSTrackingArea?
+        private var startedFromInactiveWindow = false
+        private var previousWindowLevel: NSWindow.Level?
 
         override init(frame frameRect: NSRect) {
             super.init(frame: frameRect)
@@ -53,7 +55,10 @@ struct FileIconDragView: NSViewRepresentable {
         override var mouseDownCanMoveWindow: Bool { false }
 
         /// The icon stays draggable even when its window is inactive.
-        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+            startedFromInactiveWindow = true
+            return true
+        }
 
         /// Treat a click on the icon as a potential drag, so AppKit defers the
         /// window raise until we decide whether the drag actually starts.
@@ -109,6 +114,7 @@ struct FileIconDragView: NSViewRepresentable {
         }
 
         override func viewWillMove(toWindow newWindow: NSWindow?) {
+            restoreWindowLevel()
             if newWindow == nil {
                 window?.isMovable = true
             }
@@ -148,6 +154,7 @@ struct FileIconDragView: NSViewRepresentable {
 
             isDragging = true
             resetPressedState()
+            sinkWindowIfDragStartedInactive()
 
             let item = NSDraggingItem(pasteboardWriter: url as NSURL)
             let icon = image ?? NSWorkspace.shared.icon(forFile: url.path)
@@ -162,7 +169,29 @@ struct FileIconDragView: NSViewRepresentable {
             isDragging = false
             mouseDownEvent = nil
             resetPressedState()
+            restoreWindowLevel()
             restoreWindowMovementIfPossible()
+        }
+
+        /// A drag that starts in a background window still activates the window
+        /// (the title strip is server-owned), so drop it behind normal windows
+        /// for the duration of the drag so it cannot cover the drop target.
+        private func sinkWindowIfDragStartedInactive() {
+            guard startedFromInactiveWindow,
+                  previousWindowLevel == nil,
+                  let window else { return }
+            previousWindowLevel = window.level
+            window.level = NSWindow.Level(
+                rawValue: NSWindow.Level.normal.rawValue - 1
+            )
+        }
+
+        private func restoreWindowLevel() {
+            if let previousWindowLevel {
+                window?.level = previousWindowLevel
+                self.previousWindowLevel = nil
+            }
+            startedFromInactiveWindow = false
         }
 
         private func setPressedState() {
@@ -190,6 +219,7 @@ struct FileIconDragView: NSViewRepresentable {
             isDragging = false
             mouseDownEvent = nil
             resetPressedState()
+            restoreWindowLevel()
             restoreWindowMovementIfPossible()
         }
     }
