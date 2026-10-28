@@ -25,6 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        AppCoordinator.shared.makeDockMenu()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }

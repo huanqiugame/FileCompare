@@ -8,6 +8,7 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
 
     private(set) var activeSession: ComparisonSession?
     private(set) var settings: AppSettings
+    private(set) var recentComparisons = RecentComparisonsStore.shared
     private var launcherControllers: [LauncherWindowController] = []
     private var comparisonControllers: [UUID: ComparisonWindowController] = [:]
     private var pendingOpenURLs: [URL] = []
@@ -154,6 +155,7 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
         let controller = ComparisonWindowController(session: session, coordinator: self)
         controller.position(cascadeIndex: comparisonControllers.count)
         comparisonControllers[session.id] = controller
+        recentComparisons.record(left: left, right: right)
 
         controller.showWindow(nil)
         NSApp.activate()
@@ -219,6 +221,60 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return url
+    }
+
+    // MARK: - Dock menu
+
+    /// Built on demand so the list always reflects comparisons opened during
+    /// the current session as well as previous launches.
+    func makeDockMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        if recentComparisons.items.isEmpty {
+            let empty = NSMenuItem(
+                title: String(localized: "menu.dock.no_recent", defaultValue: "No Recent Comparisons"),
+                action: nil,
+                keyEquivalent: ""
+            )
+            empty.isEnabled = false
+            menu.addItem(empty)
+            return menu
+        }
+
+        for recent in recentComparisons.items {
+            let item = NSMenuItem(
+                title: recent.displayTitle,
+                action: #selector(openRecentComparison(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = recent.id.uuidString
+            item.toolTip = "\(recent.leftPath)\n\(recent.rightPath)"
+            item.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
+            menu.addItem(item)
+        }
+
+        menu.addItem(.separator())
+        let clear = NSMenuItem(
+            title: String(localized: "menu.dock.clear_recent", defaultValue: "Clear Recent Comparisons"),
+            action: #selector(clearRecentComparisons(_:)),
+            keyEquivalent: ""
+        )
+        clear.target = self
+        menu.addItem(clear)
+        return menu
+    }
+
+    @objc func openRecentComparison(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String,
+              let recent = recentComparisons.item(id: id) else { return }
+        let urls = recentComparisons.resolve(recent)
+        openComparison(left: urls.left, right: urls.right)
+    }
+
+    @objc func clearRecentComparisons(_ sender: Any?) {
+        recentComparisons.clear()
     }
 
     // MARK: - Menu actions

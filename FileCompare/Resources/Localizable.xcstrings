@@ -630,6 +630,40 @@
         }
       }
     },
+    "menu.dock.clear_recent": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Recent Comparisons"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除最近的对比"
+          }
+        }
+      }
+    },
+    "menu.dock.no_recent": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Recent Comparisons"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有最近的对比"
+          }
+        }
+      }
+    },
     "menu.edit": {
       "extractionState": "manual",
       "localizations": {

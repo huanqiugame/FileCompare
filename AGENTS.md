@@ -13,7 +13,7 @@
   - `FileCompare/Resources/Localizable.xcstrings`：中英文
   - `FileCompareTests`：单元测试与离屏窗口快照
 - 签名：目标使用手动 ad-hoc 签名（`CODE_SIGN_IDENTITY = "-"`），不依赖开发者账号；正常构建与测试均可在本机完成。
-- Sandbox：启用 App Sandbox，仅 `com.apple.security.files.user-selected.read-only`；不执行沙盒外进程，diff 为原生实现。
+- Sandbox：启用 App Sandbox，使用 `com.apple.security.files.user-selected.read-only` 与 `com.apple.security.files.bookmarks.app-scope`（程序坞“最近打开”需持久化安全作用域书签）；不执行沙盒外进程，diff 为原生实现。
 - 测试生成快照路径会打印为 `SNAPSHOT_DIRECTORY ...`，位于 App 容器 `Data/tmp/FileCompareSnapshots-*`。
 
 ## Xcode MCP 工具（优先使用）
