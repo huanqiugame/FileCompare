@@ -204,6 +204,117 @@ struct DiffEngineTests {
         #expect(right.isLineChanged)
     }
 
+    @Test func blankSeparatedParagraphsStayPairedWhenEarlierTextChanged() throws {
+        // The blank lines between paragraphs are interchangeable, so an
+        // unanchored Myers diff can match the wrong blank and shift every
+        // following paragraph by one line.
+        let left = [
+            "intro",
+            "",
+            "old one",
+            "",
+            "old two has more words",
+            "",
+            "old three has even more words",
+            "",
+            "old four has the most words",
+            "",
+            "old five only exists here",
+            "",
+            "tail",
+        ]
+        let right = [
+            "intro",
+            "",
+            "new one",
+            "",
+            "new two has more words",
+            "",
+            "new three has even more words",
+            "",
+            "new four has the most words",
+            "",
+            "tail",
+        ]
+
+        let doc = try compare(left, right)
+
+        #expect(doc.rows.map(\.kind) == [
+            .unchanged,
+            .unchanged,
+            .modified,
+            .unchanged,
+            .modified,
+            .unchanged,
+            .modified,
+            .unchanged,
+            .modified,
+            .removed,
+            .removed,
+            .unchanged,
+            .unchanged,
+        ])
+        #expect(doc.rows.filter { $0.kind == .modified }.map(\.leftLineNumber) == [3, 5, 7, 9])
+        #expect(doc.rows.filter { $0.kind == .modified }.map(\.rightLineNumber) == [3, 5, 7, 9])
+        #expect(doc.rows.filter { $0.kind == .removed }.map(\.leftLineNumber) == [10, 11])
+        #expect(doc.rows.filter { $0.kind == .unchanged }.allSatisfy { row in
+            row.left?.text == row.right?.text
+        })
+    }
+
+    @Test func swappingInputsProducesMirroredDocuments() throws {
+        let left = [
+            "## Section",
+            "",
+            "alpha",
+            "",
+            "shared line",
+            "",
+            "beta",
+            "",
+            "shared line",
+            "",
+            "gamma",
+            "",
+        ]
+        let right = [
+            "## Section",
+            "",
+            "alpha changed",
+            "",
+            "shared line",
+            "",
+            "shared line",
+            "",
+            "gamma changed",
+            "",
+            "delta only on the right",
+            "",
+        ]
+
+        let forward = try compare(left, right)
+        let backward = try compare(right, left)
+        let mirrored = backward.swapped()
+
+        #expect(forward.rows.count == mirrored.rows.count)
+        for (expected, actual) in zip(forward.rows, mirrored.rows) {
+            #expect(expected.kind == actual.kind)
+            #expect(expected.left == actual.left)
+            #expect(expected.right == actual.right)
+            #expect(expected.changeGroup == actual.changeGroup)
+        }
+        #expect(forward.changeGroups == mirrored.changeGroups)
+    }
+
+    @Test func identicalBlankSeparatedFilesRemainIdentical() throws {
+        let lines = ["alpha", "", "", "beta", "", "gamma", "", "", ""]
+        let doc = try compare(lines, lines)
+
+        #expect(doc.isIdentical)
+        #expect(doc.changeGroups.isEmpty)
+        #expect(doc.rows.map(\.kind) == Array(repeating: .unchanged, count: lines.count))
+    }
+
     @Test func emptyFilesAndOneSidedEmptyFiles() throws {
         let empty = makeFile(lines: [], name: "empty.txt")
 

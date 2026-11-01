@@ -15,6 +15,12 @@ import Foundation
 ///    diffed with `CollectionDifference` again to find the emphasised words.
 ///    Over-long lines or token lists skip this step and mark the whole line.
 ///
+/// Blank and whitespace-only lines are not used as line-diff anchors: they are
+/// interchangeable, and letting Myers match an arbitrary one used to shift a
+/// whole paragraph by a line. They are re-attached inside change regions, and
+/// the comparison is always computed in one canonical orientation so that
+/// swapping the two inputs mirrors the rows exactly.
+///
 /// Display text is never normalized: keys are only used for matching, every
 /// cell is rebuilt from the original line characters.
 struct DiffEngine: Sendable {
@@ -70,9 +76,44 @@ struct DiffEngine: Sendable {
         right: LoadedTextFile,
         options: DiffOptions = DiffOptions()
     ) throws -> DiffDocument {
+        let leftKeys = left.lines.map { lineKey(for: $0, options: options) }
+        let rightKeys = right.lines.map { lineKey(for: $0, options: options) }
+
+        // `CollectionDifference` can pick different (equally short) edit
+        // scripts depending on the argument order. Picking one canonical
+        // orientation and mirroring the result makes comparing `A` with `B`
+        // the exact reverse of comparing `B` with `A`.
+        if rightKeys.lexicographicallyPrecedes(leftKeys) {
+            let document = try compareCore(
+                left: right,
+                right: left,
+                leftKeys: rightKeys,
+                rightKeys: leftKeys,
+                options: options
+            )
+            return document.swapped()
+        }
+
+        return try compareCore(
+            left: left,
+            right: right,
+            leftKeys: leftKeys,
+            rightKeys: rightKeys,
+            options: options
+        )
+    }
+
+    /// Builds the document for one fixed orientation.
+    private static func compareCore(
+        left: LoadedTextFile,
+        right: LoadedTextFile,
+        leftKeys: [String],
+        rightKeys: [String],
+        options: DiffOptions
+    ) throws -> DiffDocument {
         let leftLines = left.lines
         let rightLines = right.lines
-        let edits = try lineEdits(from: leftLines, to: rightLines, options: options)
+        let edits = try lineEdits(leftKeys: leftKeys, rightKeys: rightKeys)
 
         let removedOffsets = edits.removed
         let insertedOffsets = edits.inserted
@@ -107,6 +148,8 @@ struct DiffEngine: Sendable {
                     inserted: inserted,
                     leftLines: leftLines,
                     rightLines: rightLines,
+                    leftKeys: leftKeys,
+                    rightKeys: rightKeys,
                     options: options,
                     rows: &rows
                 )
@@ -139,6 +182,8 @@ struct DiffEngine: Sendable {
                     inserted: [],
                     leftLines: leftLines,
                     rightLines: rightLines,
+                    leftKeys: leftKeys,
+                    rightKeys: rightKeys,
                     options: options,
                     rows: &rows
                 )
@@ -149,6 +194,8 @@ struct DiffEngine: Sendable {
                     inserted: [rightIndex],
                     leftLines: leftLines,
                     rightLines: rightLines,
+                    leftKeys: leftKeys,
+                    rightKeys: rightKeys,
                     options: options,
                     rows: &rows
                 )
@@ -196,13 +243,136 @@ struct DiffEngine: Sendable {
     }
 
     private static func lineEdits(
-        from leftLines: [String],
-        to rightLines: [String],
-        options: DiffOptions
+        leftKeys: [String],
+        rightKeys: [String]
     ) throws -> LineEdits {
-        let leftKeys = leftLines.map { lineKey(for: $0, options: options) }
-        let rightKeys = rightLines.map { lineKey(for: $0, options: options) }
+        // Empty / whitespace-only lines are interchangeable: several of them
+        // in a row give Myers a choice of equally short edit scripts, and that
+        // choice used to shift whole paragraphs by one blank line. They are
+        // therefore excluded from the line diff and re-attached inside the
+        // change regions below.
+        let leftHasTrivialLines = leftKeys.contains(where: isTrivialKey)
+        let rightHasTrivialLines = rightKeys.contains(where: isTrivialKey)
+        guard leftHasTrivialLines, rightHasTrivialLines else {
+            return try directLineEdits(leftKeys: leftKeys, rightKeys: rightKeys)
+        }
 
+        var leftAnchorKeys: [String] = []
+        var leftAnchorPositions: [Int] = []
+        leftAnchorKeys.reserveCapacity(leftKeys.count)
+        leftAnchorPositions.reserveCapacity(leftKeys.count)
+        for (offset, key) in leftKeys.enumerated() where !isTrivialKey(key) {
+            leftAnchorKeys.append(key)
+            leftAnchorPositions.append(offset)
+        }
+
+        var rightAnchorKeys: [String] = []
+        var rightAnchorPositions: [Int] = []
+        rightAnchorKeys.reserveCapacity(rightKeys.count)
+        rightAnchorPositions.reserveCapacity(rightKeys.count)
+        for (offset, key) in rightKeys.enumerated() where !isTrivialKey(key) {
+            rightAnchorKeys.append(key)
+            rightAnchorPositions.append(offset)
+        }
+
+        let anchorEdits = try directLineEdits(
+            leftKeys: leftAnchorKeys,
+            rightKeys: rightAnchorKeys
+        )
+
+        // Walk the matched (neither removed nor inserted) non-trivial lines in
+        // order. Everything between two matches, including the blank lines, is
+        // one change region.
+        var edits = LineEdits()
+        var leftAnchor = 0
+        var rightAnchor = 0
+        var previousLeft = -1
+        var previousRight = -1
+
+        while leftAnchor < leftAnchorKeys.count, rightAnchor < rightAnchorKeys.count {
+            if anchorEdits.removed.contains(leftAnchor) {
+                leftAnchor += 1
+                continue
+            }
+            if anchorEdits.inserted.contains(rightAnchor) {
+                rightAnchor += 1
+                continue
+            }
+
+            let leftPosition = leftAnchorPositions[leftAnchor]
+            let rightPosition = rightAnchorPositions[rightAnchor]
+            markChangeRegion(
+                leftKeys: leftKeys,
+                rightKeys: rightKeys,
+                leftRange: (previousLeft + 1)..<leftPosition,
+                rightRange: (previousRight + 1)..<rightPosition,
+                edits: &edits
+            )
+            previousLeft = leftPosition
+            previousRight = rightPosition
+            leftAnchor += 1
+            rightAnchor += 1
+        }
+
+        markChangeRegion(
+            leftKeys: leftKeys,
+            rightKeys: rightKeys,
+            leftRange: (previousLeft + 1)..<leftKeys.count,
+            rightRange: (previousRight + 1)..<rightKeys.count,
+            edits: &edits
+        )
+
+        return edits
+    }
+
+    /// Whether a comparison key belongs to an empty or whitespace-only line.
+    private static func isTrivialKey(_ key: String) -> Bool {
+        key.allSatisfy(\.isWhitespace)
+    }
+
+    /// Marks everything between two matched lines as changed, keeping the
+    /// common leading and trailing lines (usually blanks) matched.
+    ///
+    /// Without this trim, an inserted blank line would pair with the following
+    /// paragraph instead of with its own blank counterpart.
+    private static func markChangeRegion(
+        leftKeys: [String],
+        rightKeys: [String],
+        leftRange: Range<Int>,
+        rightRange: Range<Int>,
+        edits: inout LineEdits
+    ) {
+        var leftStart = leftRange.lowerBound
+        var rightStart = rightRange.lowerBound
+        while leftStart < leftRange.upperBound,
+              rightStart < rightRange.upperBound,
+              leftKeys[leftStart] == rightKeys[rightStart] {
+            leftStart += 1
+            rightStart += 1
+        }
+
+        var leftEnd = leftRange.upperBound
+        var rightEnd = rightRange.upperBound
+        while leftEnd > leftStart,
+              rightEnd > rightStart,
+              leftKeys[leftEnd - 1] == rightKeys[rightEnd - 1] {
+            leftEnd -= 1
+            rightEnd -= 1
+        }
+
+        for offset in leftStart..<leftEnd {
+            edits.removed.insert(offset)
+        }
+        for offset in rightStart..<rightEnd {
+            edits.inserted.insert(offset)
+        }
+    }
+
+    /// Runs the actual line diff over an already keyed line array.
+    private static func directLineEdits(
+        leftKeys: [String],
+        rightKeys: [String]
+    ) throws -> LineEdits {
         let smallerCount = min(leftKeys.count, rightKeys.count)
         let combinedCount = leftKeys.count + rightKeys.count
         if smallerCount > maxLinesForMyersDiff || combinedCount > maxCombinedLinesForMyersDiff {
@@ -447,6 +617,8 @@ struct DiffEngine: Sendable {
         inserted: [Int],
         leftLines: [String],
         rightLines: [String],
+        leftKeys: [String],
+        rightKeys: [String],
         options: DiffOptions,
         rows: inout [DiffRow]
     ) {
@@ -463,6 +635,21 @@ struct DiffEngine: Sendable {
             let kind: DiffRowKind
 
             switch (leftIndex, rightIndex) {
+            case let (old?, new?) where leftKeys[old] == rightKeys[new]:
+                // Change regions pair lines by position, so a run of blank
+                // lines can land here even though both sides are equal.
+                leftCell = DiffCell(
+                    lineNumber: old + 1,
+                    text: leftLines[old],
+                    isLineChanged: false
+                )
+                rightCell = DiffCell(
+                    lineNumber: new + 1,
+                    text: rightLines[new],
+                    isLineChanged: false
+                )
+                kind = .unchanged
+
             case let (old?, new?):
                 if skipWordDiff {
                     leftCell = DiffCell(
