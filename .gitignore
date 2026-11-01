@@ -3,3 +3,6 @@ build/
 DerivedData/
 *.xcuserstate
 xcuserdata/
+
+# Signing certificates must never be committed.
+*.p12

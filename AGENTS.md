@@ -12,7 +12,8 @@
   - `FileCompare/UI`：启动器与比较页 SwiftUI 视图
   - `FileCompare/Resources/Localizable.xcstrings`：中英文
   - `FileCompareTests`：单元测试与离屏窗口快照
-- 签名：目标使用手动 ad-hoc 签名（`CODE_SIGN_IDENTITY = "-"`），不依赖开发者账号；正常构建与测试均可在本机完成。
+- 签名与分发：`CODE_SIGN_STYLE = Manual`；macOS 构建使用 Apple Development 证书（`DEVELOPMENT_TEAM = X422JUDN4K`）并启用 Hardened Runtime，`CODE_SIGN_IDENTITY = "-"` 仅作兜底。本机需安装该 Team 的 Apple Development 证书；CI 若沿用相同设置，也需要在 runner 上提供证书（或以 `CODE_SIGNING_ALLOWED=NO` 构建未签名包）。分发由 GitHub Actions 在 tag 上生成 ZIP/DMG 并发布 Release；当前未使用 Developer ID 签名、未经 Apple 公证，首次打开仍需按 `.github/release-notes.md` 处理 Gatekeeper 提示。
+- CI 签名：GitHub Actions 通过仓库 Secret `BUILD_CERTIFICATE_BASE64`（p12 的 base64）与 `P12_PASSWORD` 导入证书，临时钥匙串密码在 job 内随机生成；未配置证书 Secret 时回退为未签名构建。
 - Sandbox：启用 App Sandbox，使用 `com.apple.security.files.user-selected.read-only` 与 `com.apple.security.files.bookmarks.app-scope`（程序坞“最近打开”需持久化安全作用域书签）；不执行沙盒外进程，diff 为原生实现。
 - 测试生成快照路径会打印为 `SNAPSHOT_DIRECTORY ...`，位于 App 容器 `Data/tmp/FileCompareSnapshots-*`。
 

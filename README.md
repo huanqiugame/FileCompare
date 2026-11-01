@@ -37,7 +37,7 @@ xcodebuild \
   build
 ```
 
-项目使用手动 ad-hoc 签名。
+项目使用手动签名：macOS 构建使用 Apple Development 证书（Team `X422JUDN4K`）并启用 Hardened Runtime。首次从源码构建前，请确保本机已安装该 Team 的 Apple Development 证书；也可以把 `CODE_SIGN_IDENTITY[sdk=macosx*]` 改为 `-` 使用 ad-hoc 签名。
 
 测试（运行前请先退出正在运行的 FileCompare）：
 
