@@ -32,6 +32,7 @@ enum MainMenu {
             #selector(AppCoordinator.findPrevious(_:)): "chevron.up",
             #selector(AppCoordinator.swapSides(_:)): "arrow.left.arrow.right",
             #selector(AppCoordinator.toggleLineNumbers(_:)): "list.number",
+            #selector(AppCoordinator.toggleMarkdownRendering(_:)): "text.badge.checkmark",
             #selector(AppCoordinator.increaseFontSize(_:)): "textformat.size.larger",
             #selector(AppCoordinator.decreaseFontSize(_:)): "textformat.size.smaller",
             #selector(AppCoordinator.actualSize(_:)): "textformat.size",
@@ -246,6 +247,14 @@ enum MainMenu {
         menu.addItem(customItem(
             title: String(localized: "menu.compare.ignore_case", defaultValue: "Ignore Case"),
             action: #selector(AppCoordinator.toggleIgnoreCase(_:)),
+            coordinator: coordinator
+        ))
+        menu.addItem(.separator())
+        menu.addItem(customItem(
+            title: String(localized: "menu.compare.render_markdown", defaultValue: "Render Markdown"),
+            action: #selector(AppCoordinator.toggleMarkdownRendering(_:)),
+            key: "m",
+            modifiers: [.command, .shift],
             coordinator: coordinator
         ))
 

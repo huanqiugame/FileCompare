@@ -106,6 +106,67 @@ struct ComparisonSessionTests {
         session.setAutoReload(false)
     }
 
+    @Test func markdownPairComparesRenderedSyntax() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FileCompareSessionTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let left = directory.appendingPathComponent("left.md")
+        let right = directory.appendingPathComponent("right.md")
+        try "# Title\n\nA *small* paragraph.\n".write(to: left, atomically: true, encoding: .utf8)
+        try "Title\n=====\n\nA _small_ paragraph.\n".write(to: right, atomically: true, encoding: .utf8)
+
+        let suiteName = "FileCompareSessionTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let settings = AppSettings(defaults: defaults)
+        settings.renderMarkdown = true
+
+        let session = ComparisonSession(leftURL: left, rightURL: right, settings: settings)
+        session.load()
+        await waitForLoad(session)
+
+        #expect(session.supportsMarkdownRendering)
+        #expect(session.isRenderingMarkdown)
+        #expect(session.document?.isIdentical == true)
+        #expect(session.document?.left.lines == ["# Title", "A *small* paragraph."])
+
+        session.setMarkdownRendering(false)
+        await waitForLoad(session)
+
+        #expect(!session.isRenderingMarkdown)
+        #expect(session.document?.isIdentical == false)
+
+        session.setAutoReload(false)
+    }
+
+    @Test func mixedMarkdownAndTextPairStaysPlainText() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FileCompareSessionTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let left = directory.appendingPathComponent("left.md")
+        let right = directory.appendingPathComponent("right.txt")
+        try "# Title\n".write(to: left, atomically: true, encoding: .utf8)
+        try "# Title\n".write(to: right, atomically: true, encoding: .utf8)
+
+        let session = ComparisonSession(
+            leftURL: left,
+            rightURL: right,
+            settings: AppSettings.shared
+        )
+        session.load()
+        await waitForLoad(session)
+
+        #expect(!session.supportsMarkdownRendering)
+        #expect(!session.isRenderingMarkdown)
+        #expect(session.document?.left.lines == ["# Title"])
+
+        session.setAutoReload(false)
+    }
+
     @Test func ignoreWhitespaceReloadsWithFewerChanges() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("FileCompareSessionTests-\(UUID().uuidString)", isDirectory: true)

@@ -31,6 +31,7 @@ struct MainMenuTests {
             (#selector(AppCoordinator.find(_:)), "f", "magnifyingglass"),
             (#selector(AppCoordinator.swapSides(_:)), "x", "arrow.left.arrow.right"),
             (#selector(AppCoordinator.toggleLineNumbers(_:)), "l", "list.number"),
+            (#selector(AppCoordinator.toggleMarkdownRendering(_:)), "m", "text.badge.checkmark"),
             (#selector(AppCoordinator.nextDifference(_:)), "\u{F701}", "arrow.down.to.line")
         ]
 

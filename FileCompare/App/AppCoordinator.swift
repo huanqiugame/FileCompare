@@ -346,6 +346,13 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
         session.setIgnoreCase(!session.options.ignoreCase)
     }
 
+    @objc func toggleMarkdownRendering(_ sender: Any?) {
+        settings.renderMarkdown.toggle()
+        for controller in comparisonControllers.values {
+            controller.session.setMarkdownRendering(settings.renderMarkdown)
+        }
+    }
+
     @objc func toggleLineNumbers(_ sender: Any?) {
         settings.showLineNumbers.toggle()
     }
@@ -382,6 +389,10 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
         if action == #selector(toggleLineNumbers(_:)) {
             menuItem.state = settings.showLineNumbers ? .on : .off
             return true
+        }
+        if action == #selector(toggleMarkdownRendering(_:)) {
+            menuItem.state = settings.renderMarkdown ? .on : .off
+            return activeSession?.supportsMarkdownRendering ?? true
         }
         if action == #selector(increaseFontSize(_:)) ||
             action == #selector(decreaseFontSize(_:)) ||

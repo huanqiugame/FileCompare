@@ -50,7 +50,8 @@ struct DiffContentView: View {
             let rendererKey = DiffTextRenderer.Key(
                 documentRevision: session.documentRevision,
                 fontSize: fontSize,
-                colorScheme: colorScheme
+                colorScheme: colorScheme,
+                isMarkdown: session.isRenderingMarkdown
             )
             let currentMatch = session.currentMatch
 

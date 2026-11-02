@@ -596,6 +596,23 @@
         }
       }
     },
+    "menu.compare.render_markdown": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Render Markdown"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按 Markdown 语法渲染"
+          }
+        }
+      }
+    },
     "menu.compare.ignore_whitespace": {
       "extractionState": "manual",
       "localizations": {

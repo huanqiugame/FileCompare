@@ -9,7 +9,7 @@
 - 源码：
   - `FileCompare/App`：应用入口、AppDelegate、窗口控制器、菜单、协调器
   - `FileCompare/Models`：Diff 模型、ComparisonSession、LauncherModel、AppSettings
-  - `FileCompare/Engine`：原生 diff、Tokenizer、TextFileLoader、FileChangeMonitor
+  - `FileCompare/Engine`：原生 diff、Tokenizer、TextFileLoader、FileChangeMonitor、Markdown 语义规范化（依赖 Swift Package `swift-markdown` 0.9.0）
   - `FileCompare/UI`：启动器与比较页 SwiftUI 视图
   - `FileCompare/Resources/Localizable.xcstrings`：中英文
   - `FileCompareTests`：单元测试与离屏窗口快照

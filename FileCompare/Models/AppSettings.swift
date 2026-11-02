@@ -10,6 +10,7 @@ final class AppSettings {
         static let showLineNumbers = "showLineNumbers"
         static let fontSize = "fontSize"
         static let autoReload = "autoReload"
+        static let renderMarkdown = "renderMarkdown"
     }
 
     private let defaults: UserDefaults
@@ -26,11 +27,18 @@ final class AppSettings {
         didSet { defaults.set(autoReload, forKey: Key.autoReload) }
     }
 
+    /// When enabled, a pair of Markdown files is compared after CommonMark
+    /// parsing instead of as raw source text.
+    var renderMarkdown: Bool {
+        didSet { defaults.set(renderMarkdown, forKey: Key.renderMarkdown) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         self.showLineNumbers = defaults.object(forKey: Key.showLineNumbers) as? Bool ?? false
         self.fontSize = defaults.object(forKey: Key.fontSize) as? Double ?? 14
         self.autoReload = defaults.object(forKey: Key.autoReload) as? Bool ?? true
+        self.renderMarkdown = defaults.object(forKey: Key.renderMarkdown) as? Bool ?? true
     }
 
     func increaseFontSize() {

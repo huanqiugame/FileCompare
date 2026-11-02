@@ -29,6 +29,8 @@ final class ComparisonSession: Identifiable {
     var rightURL: URL?
     var document: DiffDocument?
     var options = DiffOptions()
+    /// Whether both sides are Markdown and rendering is enabled for this session.
+    private(set) var isRenderingMarkdown = false
     var isLoading = false
     var errorMessage: String?
     var isFindBarVisible = false
@@ -59,6 +61,7 @@ final class ComparisonSession: Identifiable {
     private var changeIndex = -1
 
     @ObservationIgnored private var autoReloadEnabled = false
+    @ObservationIgnored private var markdownRenderingEnabled: Bool
     @ObservationIgnored private var monitor: FileChangeMonitor?
     @ObservationIgnored private var autoReloadTask: Task<Void, Never>?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
@@ -72,6 +75,7 @@ final class ComparisonSession: Identifiable {
         self.leftScopedFile = SecurityScopedFile(url: leftURL)
         self.rightScopedFile = SecurityScopedFile(url: rightURL)
         self.autoReloadEnabled = settings.autoReload
+        self.markdownRenderingEnabled = settings.renderMarkdown
     }
 
     // MARK: - Derived state
@@ -82,6 +86,12 @@ final class ComparisonSession: Identifiable {
 
     var canSwap: Bool {
         leftURL != nil && rightURL != nil
+    }
+
+    /// Whether the current pair could use Markdown rendering, regardless of
+    /// whether the setting is currently on.
+    var supportsMarkdownRendering: Bool {
+        MarkdownSupport.shouldRender(left: leftURL, right: rightURL)
     }
 
     var changeCount: Int {
@@ -132,6 +142,8 @@ final class ComparisonSession: Identifiable {
 
         let anchor = captureAnchor()
         let requestedOptions = options
+        let renderMarkdown = markdownRenderingEnabled
+            && MarkdownSupport.shouldRender(left: leftURL, right: rightURL)
         let token = UUID()
         activeLoadToken = token
         loadTask?.cancel()
@@ -146,7 +158,8 @@ final class ComparisonSession: Identifiable {
             let outcome = await Self.performLoad(
                 left: leftFile,
                 right: rightFile,
-                options: requestedOptions
+                options: requestedOptions,
+                renderMarkdown: renderMarkdown
             )
             guard !Task.isCancelled else { return }
             await MainActor.run {
@@ -238,6 +251,20 @@ final class ComparisonSession: Identifiable {
     func setIgnoreCase(_ value: Bool) {
         guard options.ignoreCase != value else { return }
         options.ignoreCase = value
+        reload()
+    }
+
+    /// Enables or disables semantic Markdown comparison for this session.
+    ///
+    /// The setting is ignored for pairs that are not both Markdown files; those
+    /// keep being compared as plain text.
+    func setMarkdownRendering(_ enabled: Bool) {
+        guard markdownRenderingEnabled != enabled else { return }
+        markdownRenderingEnabled = enabled
+        // Plain-text pairs have nothing to recompute, but the stored choice
+        // still has to follow the global setting in case a side is replaced
+        // with a Markdown file later.
+        guard supportsMarkdownRendering else { return }
         reload()
     }
 
@@ -484,11 +511,12 @@ final class ComparisonSession: Identifiable {
 
     private func apply(_ outcome: LoadOutcome, anchor: ScrollAnchor?) {
         switch outcome {
-        case .success(let leftFile, let rightFile, let document):
+        case .success(let leftFile, let rightFile, let document, let renderedMarkdown):
             AppLog.comparison.notice(
-                "Loaded \(leftFile.displayName, privacy: .public) (\(leftFile.lineCount) lines) vs \(rightFile.displayName, privacy: .public) (\(rightFile.lineCount) lines), \(document.changeGroups.count) change group(s)"
+                "Loaded \(leftFile.displayName, privacy: .public) (\(leftFile.lineCount) lines) vs \(rightFile.displayName, privacy: .public) (\(rightFile.lineCount) lines), \(document.changeGroups.count) change group(s)\(renderedMarkdown ? ", Markdown rendering" : "")"
             )
             isLoading = false
+            isRenderingMarkdown = renderedMarkdown
             leftTextFile = leftFile
             rightTextFile = rightFile
             self.document = document
@@ -607,7 +635,8 @@ final class ComparisonSession: Identifiable {
     private nonisolated static func performLoad(
         left: SecurityScopedFile,
         right: SecurityScopedFile,
-        options: DiffOptions
+        options: DiffOptions,
+        renderMarkdown: Bool
     ) async -> LoadOutcome {
         do {
             try Task.checkCancellation()
@@ -615,8 +644,20 @@ final class ComparisonSession: Identifiable {
             try Task.checkCancellation()
             let rightFile = try TextFileLoader.read(url: right.url)
             try Task.checkCancellation()
-            let document = try DiffEngine.compare(left: leftFile, right: rightFile, options: options)
-            return .success(leftFile, rightFile, document)
+
+            let leftComparable = renderMarkdown
+                ? MarkdownSupport.renderedFile(from: leftFile)
+                : leftFile
+            let rightComparable = renderMarkdown
+                ? MarkdownSupport.renderedFile(from: rightFile)
+                : rightFile
+
+            let document = try DiffEngine.compare(
+                left: leftComparable,
+                right: rightComparable,
+                options: options
+            )
+            return .success(leftFile, rightFile, document, renderMarkdown)
         } catch is CancellationError {
             return .cancelled
         } catch let error as FileLoadError {
@@ -664,7 +705,7 @@ private struct PendingReplacement {
 }
 
 private enum LoadOutcome: Sendable {
-    case success(LoadedTextFile, LoadedTextFile, DiffDocument)
+    case success(LoadedTextFile, LoadedTextFile, DiffDocument, Bool)
     case failure(String)
     case cancelled
 }

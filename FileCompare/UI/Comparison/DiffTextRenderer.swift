@@ -15,6 +15,7 @@ final class DiffTextRenderer {
         var documentRevision: Int
         var fontSize: CGFloat
         var colorScheme: ColorScheme
+        var isMarkdown: Bool
     }
 
     private var key: Key?
@@ -34,7 +35,8 @@ final class DiffTextRenderer {
         let presentation = Self.makePresentation(
             for: row,
             fontSize: key.fontSize,
-            colorScheme: key.colorScheme
+            colorScheme: key.colorScheme,
+            isMarkdown: key.isMarkdown
         )
         if cache.count >= cacheLimit {
             cache.removeAll(keepingCapacity: true)
@@ -46,7 +48,8 @@ final class DiffTextRenderer {
     private static func makePresentation(
         for row: DiffRow,
         fontSize: CGFloat,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        isMarkdown: Bool
     ) -> DiffRowPresentation {
         DiffRowPresentation(
             left: attributedText(
@@ -54,14 +57,16 @@ final class DiffTextRenderer {
                 kind: row.kind,
                 side: .left,
                 fontSize: fontSize,
-                colorScheme: colorScheme
+                colorScheme: colorScheme,
+                isMarkdown: isMarkdown
             ),
             right: attributedText(
                 for: row.right,
                 kind: row.kind,
                 side: .right,
                 fontSize: fontSize,
-                colorScheme: colorScheme
+                colorScheme: colorScheme,
+                isMarkdown: isMarkdown
             )
         )
     }
@@ -71,9 +76,20 @@ final class DiffTextRenderer {
         kind: DiffRowKind,
         side: ComparisonSide,
         fontSize: CGFloat,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        isMarkdown: Bool
     ) -> AttributedString {
         guard let cell else { return AttributedString() }
+
+        if isMarkdown {
+            return markdownAttributedText(
+                for: cell,
+                kind: kind,
+                side: side,
+                fontSize: fontSize,
+                colorScheme: colorScheme
+            )
+        }
 
         var result = AttributedString()
         let font = Font.system(size: fontSize)
@@ -95,6 +111,52 @@ final class DiffTextRenderer {
             }
             result += piece
         }
+        return result
+    }
+
+    /// Styles canonical Markdown and then paints the word-level diff on top.
+    ///
+    /// `MarkdownCellStyler` preserves every character, so run offsets computed
+    /// by the diff engine remain valid after styling.
+    private static func markdownAttributedText(
+        for cell: DiffCell,
+        kind: DiffRowKind,
+        side: ComparisonSide,
+        fontSize: CGFloat,
+        colorScheme: ColorScheme
+    ) -> AttributedString {
+        var result = MarkdownCellStyler.attributedString(
+            cell.text,
+            fontSize: fontSize,
+            colorScheme: colorScheme
+        )
+
+        guard kind == .modified else { return result }
+
+        let underlineColor = DiffPalette.wordUnderline(side: side, colorScheme: colorScheme)
+        let background = DiffPalette.wordBackground(
+            kind: kind,
+            side: side,
+            colorScheme: colorScheme
+        )
+        let characterCount = result.characters.count
+        var offset = 0
+
+        for run in cell.runs {
+            defer { offset += run.text.count }
+            guard run.emphasis == .word else { continue }
+            let upperOffset = offset + run.text.count
+            guard offset < upperOffset, upperOffset <= characterCount else { continue }
+
+            let lower = result.index(result.startIndex, offsetByCharacters: offset)
+            let upper = result.index(result.startIndex, offsetByCharacters: upperOffset)
+            result[lower..<upper].backgroundColor = background
+            result[lower..<upper].underlineStyle = Text.LineStyle(
+                pattern: .solid,
+                color: underlineColor
+            )
+        }
+
         return result
     }
 }
