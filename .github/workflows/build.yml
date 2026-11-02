@@ -89,6 +89,9 @@ jobs:
               -configuration Release \
               -destination 'platform=macOS' \
               -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+              DEPLOYMENT_POSTPROCESSING=YES \
+              CLANG_COVERAGE_MAPPING=NO \
+              CLANG_ENABLE_CODE_COVERAGE=NO \
               "$@" \
               build
           }
@@ -132,9 +135,22 @@ jobs:
           ln -s /Applications staging/Applications
           diskutil image create from --format UDZO --volumeName FileCompare staging "dist/${NAME}.dmg"
 
+          DSYM="$APP.dSYM"
+          DWARF="$DSYM/Contents/Resources/DWARF/FileCompare"
+          if [[ -f "$DWARF" ]]; then
+            mkdir -p dist-dsym
+            echo "Creating dSYM ZIP"
+            ditto -c -k --sequesterRsrc --keepParent "$DSYM" "dist-dsym/${NAME}.dSYM.zip"
+            DSYM_UUID=$(xcrun dwarfdump --uuid "$DWARF" | awk 'NR == 1 { print $2 }')
+          else
+            echo "::warning::dSYM not found at $DSYM; crash reports of this build cannot be symbolicated."
+            DSYM_UUID=""
+          fi
+
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "build=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "dsym_uuid=${DSYM_UUID}" >> "$GITHUB_OUTPUT"
 
           {
             echo "### 构建产物"
@@ -147,9 +163,20 @@ jobs:
             echo "| 文件 | 大小 |"
             echo "| --- | --- |"
             ls -lh dist | awk 'NR > 1 { print "| " $9 " | " $5 " |" }'
+            if [[ -n "$DSYM_UUID" ]]; then
+              echo
+              echo "| dSYM | 值 |"
+              echo "| --- | --- |"
+              echo "| UUID | \`${DSYM_UUID}\` |"
+              echo "| 文件 | \`${NAME}.dSYM.zip\` ($(du -h "dist-dsym/${NAME}.dSYM.zip" | cut -f1)) |"
+              echo
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
           ls -lh dist
+          if [[ -d dist-dsym ]]; then
+            ls -lh dist-dsym
+          fi
 
       - name: Check tag against project version
         if: github.ref_type == 'tag'
@@ -161,12 +188,29 @@ jobs:
             echo "::warning::标签 $TAG 与 MARKETING_VERSION $VERSION 不一致，发布包名称以标签为准。"
           fi
 
-      - name: Upload artifact
+      - name: Upload ZIP artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.package.outputs.name }}
-          path: dist/*
+          name: ${{ steps.package.outputs.name }}-zip
+          path: dist/*.zip
           retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.package.outputs.name }}-dmg
+          path: dist/*.dmg
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload dSYM artifact
+        if: steps.package.outputs.dsym_uuid != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.package.outputs.name }}-dSYM
+          path: dist-dsym/*.dSYM.zip
+          retention-days: 90
           if-no-files-found: error
 
       - name: Publish release
