@@ -36,7 +36,7 @@ struct DropZoneView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(Color.primary.opacity(0.03))
         }
-        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 18, style: .continuous))
+        .liquidGlass(interactive: true, in: .rect(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(

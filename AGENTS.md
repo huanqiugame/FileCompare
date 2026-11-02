@@ -2,8 +2,9 @@
 
 ## 项目简介
 
-- 项目：`FileCompare`（macOS 27，AppKit 窗口/菜单外壳 + SwiftUI 内容）
-- Bundle ID：`com.huanqiu.FileCompare`；最低系统 macOS 27.0；仅 arm64。
+- 项目：`FileCompare`（macOS 14+，AppKit 窗口/菜单外壳 + SwiftUI 内容）
+- Bundle ID：`com.huanqiu.FileCompare`；最低系统 macOS 14.0；仅 arm64。
+- 兼容策略：使用 macOS 27 SDK 构建，最低部署目标为 macOS 14。macOS 26+ 的 Liquid Glass 与 macOS 15+ 的滚动可见性接口需通过 `UI/Shared` 中的兼容层按可用性分支调用。
 - Scheme：`FileCompare`（shared）；测试 target：`FileCompareTests`（Swift Testing，host 为 FileCompare.app）。
 - 源码：
   - `FileCompare/App`：应用入口、AppDelegate、窗口控制器、菜单、协调器

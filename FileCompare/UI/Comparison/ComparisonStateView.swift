@@ -58,7 +58,7 @@ struct ComparisonErrorView: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(nsColor: .windowBackgroundColor).opacity(0.94))
         }
-        .glassEffect(.regular, in: .rect(cornerRadius: 16))
+        .liquidGlass(in: .rect(cornerRadius: 16))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)

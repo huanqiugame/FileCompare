@@ -1,7 +1,7 @@
 ## 安装
 
 1. 下载 `.dmg`，打开后把 `FileCompare` 拖入「应用程序」。
-2. 要求 macOS 27 或更高版本、Apple Silicon。当前包仅面向 arm64。
+2. 要求 macOS 14 Sonoma 或更高版本、搭载 Apple 芯片的 Mac。
 
 ## 首次打开
 

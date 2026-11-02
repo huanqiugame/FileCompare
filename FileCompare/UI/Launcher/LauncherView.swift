@@ -36,7 +36,7 @@ struct LauncherView: View {
                 Capsule()
                     .fill(Color.accentColor.opacity(model.canCompare ? 0.12 : 0.04))
             }
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .liquidGlass(interactive: true, in: .capsule)
             .overlay {
                 Capsule()
                     .strokeBorder(Color.accentColor.opacity(model.canCompare ? 0.22 : 0.08), lineWidth: 0.5)

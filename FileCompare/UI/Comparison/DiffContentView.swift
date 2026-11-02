@@ -7,6 +7,7 @@ struct DiffContentView: View {
 
     @State private var renderer = DiffTextRenderer()
     @State private var handledScrollRequestID: UUID?
+    @State private var topRowID: Int?
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -79,9 +80,11 @@ struct DiffContentView: View {
                     session.isFindBarVisible ? 44 : 0,
                     for: .scrollContent
                 )
-                .onScrollTargetVisibilityChange(idType: Int.self, threshold: 0.01) { visibleIDs in
-                    session.updateTopRow(visibleIDs.min())
-                }
+                .modifier(
+                    TopVisibleRowTracking(topRowID: $topRowID) { rowID in
+                        session.updateTopRow(rowID)
+                    }
+                )
                 .onAppear {
                     revealCurrentScrollRequest(using: scrollProxy)
                 }

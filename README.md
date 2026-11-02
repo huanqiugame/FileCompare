@@ -1,6 +1,6 @@
 # FileCompare
 
-专门面向文档工作的 macOS 图形化文件比较工具。使用 Swift、SwiftUI 与 macOS 27 SDK 构建。
+专门面向文档工作的 macOS 图形化文件比较工具。使用 Swift、SwiftUI 与 macOS 27 SDK 构建，兼容 macOS 14 Sonoma 及以上版本。
 
 相比于其他绝大多数面对代码场景开发的文档比较工具，此工具小巧（仅不到4MB）、简洁、美观，移除了绝大多数冗余功能，尽力保证文档的阅读体验。
 
@@ -20,7 +20,8 @@
 
 ## 系统要求
 
-- macOS 27 或更高版本
+- 搭载 Apple 芯片的 Mac
+- macOS 14 Sonoma 或更高版本
 
 ## 构建与运行
 

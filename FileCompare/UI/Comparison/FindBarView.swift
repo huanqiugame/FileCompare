@@ -93,7 +93,7 @@ struct FindBarView: View {
             Capsule()
                 .fill(Color(nsColor: .windowBackgroundColor).opacity(0.94))
         }
-        .glassEffect(.regular, in: .capsule)
+        .liquidGlass(in: .capsule)
         .overlay {
             Capsule()
                 .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)

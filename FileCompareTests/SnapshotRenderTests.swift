@@ -184,8 +184,8 @@ struct SnapshotRenderTests {
     }
 
     /// Renders through a real NSWindow/NSHostingView instead of ImageRenderer so
-    /// ScrollView, Liquid Glass and AppKit-backed content have a window to lay
-    /// out against.
+    /// ScrollView, Liquid Glass (or its pre-26 fallback) and AppKit-backed
+    /// content have a window to lay out against.
     private func renderInWindow<V: View>(
         _ view: V,
         name: String,
