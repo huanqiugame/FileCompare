@@ -42,6 +42,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          if [[ -z "${P12_PASSWORD:-}" ]]; then
+            echo "::error::P12_PASSWORD secret is missing or empty."
+            exit 1
+          fi
+
           CERT_PATH="$RUNNER_TEMP/build_certificate.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
           # The keychain only exists for this job, so its password never needs
@@ -64,9 +69,12 @@ jobs:
             keychain="${keychain%"${keychain##*[![:space:]]}"}"
             keychain="${keychain#\"}"
             keychain="${keychain%\"}"
-            [[ -n "$keychain" ]] && EXISTING_KEYCHAINS+=("$keychain")
+            if [[ -n "$keychain" ]]; then
+              EXISTING_KEYCHAINS+=("$keychain")
+            fi
           done < <(security list-keychains -d user)
-          security list-keychains -d user -s "$KEYCHAIN_PATH" "${EXISTING_KEYCHAINS[@]}"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" \
+            ${EXISTING_KEYCHAINS[@]+"${EXISTING_KEYCHAINS[@]}"}
 
           rm -f "$CERT_PATH"
 
@@ -74,20 +82,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          SIGNING_ARGUMENTS=()
-          if [[ "${HAS_SIGNING_CERTIFICATE}" != "true" ]]; then
-            echo "No signing certificate configured; building unsigned."
-            SIGNING_ARGUMENTS=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO)
-          fi
+          build_app() {
+            xcodebuild \
+              -project FileCompare.xcodeproj \
+              -scheme FileCompare \
+              -configuration Release \
+              -destination 'platform=macOS' \
+              -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+              "$@" \
+              build
+          }
 
-          xcodebuild \
-            -project FileCompare.xcodeproj \
-            -scheme FileCompare \
-            -configuration Release \
-            -destination 'platform=macOS' \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            "${SIGNING_ARGUMENTS[@]}" \
-            build
+          if [[ "${HAS_SIGNING_CERTIFICATE}" == "true" ]]; then
+            build_app
+          else
+            echo "No signing certificate configured; building unsigned."
+            build_app CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+          fi
 
       - name: Package
         id: package
