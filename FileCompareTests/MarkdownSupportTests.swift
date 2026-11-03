@@ -92,6 +92,48 @@ struct MarkdownSupportTests {
         #expect(rendered.lines == render(file.text))
     }
 
+    @Test func renderedContentMarksTopLevelBlocks() {
+        let content = MarkdownSupport.renderedContent(
+            from: "# Title\n\nA paragraph.\n\n- one\n- two\n\n```swift\nlet value = 1\n```\n"
+        )
+
+        #expect(content.lines == [
+            "# Title",
+            "A paragraph.",
+            "- one",
+            "- two",
+            "```swift",
+            "let value = 1",
+            "```"
+        ])
+        #expect(content.blockStarts == [
+            true,
+            true,
+            true,
+            false,
+            true,
+            false,
+            false
+        ])
+    }
+
+    @Test func blockStartsSurviveIntoTheDiffDocument() throws {
+        let file = MarkdownSupport.renderedFile(
+            from: makeMarkdownFile("# Title\n\nA paragraph.\n\n- one\n- two\n")
+        )
+
+        #expect(file.startsBlock(atLine: 1))
+        #expect(file.startsBlock(atLine: 2))
+        #expect(file.startsBlock(atLine: 3))
+        #expect(!file.startsBlock(atLine: 4))
+
+        let document = try DiffEngine.compare(left: file, right: file)
+        #expect(document.startsBlock(for: document.rows[0]))
+        #expect(document.startsBlock(for: document.rows[1]))
+        #expect(document.startsBlock(for: document.rows[2]))
+        #expect(!document.startsBlock(for: document.rows[3]))
+    }
+
     @Test func equivalentMarkdownProducesNoDiff() throws {
         let left = MarkdownSupport.renderedFile(
             from: makeMarkdownFile("# Title\n\nA *small* paragraph.\n", name: "left.md")

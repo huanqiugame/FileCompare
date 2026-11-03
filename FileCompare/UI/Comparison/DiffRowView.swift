@@ -11,6 +11,8 @@ struct DiffRowView: View {
     let rightMatches: [NSRange]
     let currentMatch: FindMatch?
     let isHighlighted: Bool
+    /// Marks rows where a new top-level Markdown block begins.
+    let startsBlock: Bool
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -53,6 +55,7 @@ struct DiffRowView: View {
                     .transition(.opacity)
             }
         }
+        .padding(.top, startsBlock && row.id > 0 ? metrics.blockSpacing : 0)
         .animation(.easeOut(duration: 0.18), value: isHighlighted)
     }
 

@@ -89,6 +89,13 @@ struct DiffDocument: Sendable {
     var rightMaxLineNumber: Int { right.lineCount }
     var maxLineNumber: Int { max(left.lineCount, right.lineCount) }
 
+    /// Whether either side of `row` begins a top-level Markdown block.
+    func startsBlock(for row: DiffRow) -> Bool {
+        let leftStarts = row.left.map { left.startsBlock(atLine: $0.lineNumber) } ?? false
+        let rightStarts = row.right.map { right.startsBlock(atLine: $0.lineNumber) } ?? false
+        return leftStarts || rightStarts
+    }
+
     /// Swaps both sides without recomputing the diff. Removed rows become
     /// added rows, added rows become removed rows, and word emphasis moves
     /// with its text.

@@ -67,7 +67,8 @@ struct DiffContentView: View {
                                 leftMatches: session.findHighlights[row.id]?[.left] ?? [],
                                 rightMatches: session.findHighlights[row.id]?[.right] ?? [],
                                 currentMatch: currentMatch?.rowID == row.id ? currentMatch : nil,
-                                isHighlighted: session.highlightedRowID == row.id
+                                isHighlighted: session.highlightedRowID == row.id,
+                                startsBlock: document.startsBlock(for: row)
                             )
                             .id(row.id)
                         }
@@ -121,6 +122,8 @@ struct DiffRowMetrics: Equatable {
     let textWidth: CGFloat
     let lineNumberFontSize: CGFloat
     let fontSize: CGFloat
+    /// Vertical breathing room before each new Markdown block.
+    let blockSpacing: CGFloat
 
     init(width: CGFloat, fontSize: CGFloat, showLineNumbers: Bool, maxLineNumber: Int) {
         let safeWidth = max(width, 2)
@@ -142,5 +145,6 @@ struct DiffRowMetrics: Equatable {
         self.textWidth = textWidth
         self.lineNumberFontSize = lineNumberFontSize
         self.fontSize = fontSize
+        self.blockSpacing = max(10, (fontSize * 0.75).rounded())
     }
 }

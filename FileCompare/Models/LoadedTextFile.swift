@@ -14,11 +14,23 @@ struct LoadedTextFile: Identifiable, Hashable, Sendable {
     let byteCount: Int
     let hadFinalNewline: Bool
 
+    /// For Markdown-rendered files, marks the first line of every top-level
+    /// block. The diff view uses it to leave breathing room between blocks.
+    /// Plain text files leave this empty.
+    var lineBlockStarts: [Bool] = []
+
     var id: URL { url }
     var lineCount: Int { lines.count }
 
     func line(at index: Int) -> String? {
         guard lines.indices.contains(index) else { return nil }
         return lines[index]
+    }
+
+    /// Whether the 1-based line number starts a top-level Markdown block.
+    func startsBlock(atLine lineNumber: Int) -> Bool {
+        let index = lineNumber - 1
+        guard lineBlockStarts.indices.contains(index) else { return false }
+        return lineBlockStarts[index]
     }
 }

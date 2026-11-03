@@ -49,20 +49,28 @@ enum MarkdownSupport {
         )
     }
 
+    /// The canonical lines of one rendered document plus block boundaries.
+    struct RenderedContent: Sendable {
+        var lines: [String]
+        /// Parallel to `lines`; `true` at the first line of each top-level block.
+        var blockStarts: [Bool]
+    }
+
     /// Replaces the file's lines with the canonical rendering.
     ///
     /// Metadata (URL, display name, encoding, byte count) is preserved so the
     /// rest of the app can keep treating the value as the same file.
     static func renderedFile(from file: LoadedTextFile) -> LoadedTextFile {
-        let lines = renderedLines(from: file.text)
+        let content = renderedContent(from: file.text)
         return LoadedTextFile(
             url: file.url,
             displayName: file.displayName,
-            text: lines.joined(separator: "\n"),
-            lines: lines,
+            text: content.lines.joined(separator: "\n"),
+            lines: content.lines,
             encodingName: file.encodingName,
             byteCount: file.byteCount,
-            hadFinalNewline: !lines.isEmpty
+            hadFinalNewline: !content.lines.isEmpty,
+            lineBlockStarts: content.blockStarts
         )
     }
 
@@ -71,11 +79,21 @@ enum MarkdownSupport {
     /// Empty lines separating blocks are omitted; empty lines *inside* a block
     /// (for example a code block) are kept, because they are content.
     static func renderedLines(from source: String) -> [String] {
-        guard !source.isEmpty else { return [] }
+        renderedContent(from: source).lines
+    }
+
+    /// Parses `source` into canonical lines and records where each top-level
+    /// block starts, so the diff view can separate blocks visually.
+    static func renderedContent(from source: String) -> RenderedContent {
+        guard !source.isEmpty else {
+            return RenderedContent(lines: [], blockStarts: [])
+        }
 
         let document = Document(parsing: source)
         var lines: [String] = []
+        var blockStarts: [Bool] = []
         lines.reserveCapacity(document.childCount * 2)
+        blockStarts.reserveCapacity(document.childCount * 2)
 
         let options = makeFormattingOptions()
         for block in document.children {
@@ -90,10 +108,14 @@ enum MarkdownSupport {
             while blockLines.last?.isEmpty == true {
                 blockLines.removeLast()
             }
+
+            guard !blockLines.isEmpty else { continue }
             lines.append(contentsOf: blockLines)
+            blockStarts.append(true)
+            blockStarts.append(contentsOf: repeatElement(false, count: blockLines.count - 1))
         }
 
-        return lines
+        return RenderedContent(lines: lines, blockStarts: blockStarts)
     }
 
     private static func trimTrailingWhitespace(_ line: String) -> String {
