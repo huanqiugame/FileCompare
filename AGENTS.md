@@ -28,12 +28,6 @@
 
 Code Mode 下通过 `tools.xcode.<ToolName>` 调用（共 54 个工具）。相比直接读写文件或 `xcodebuild`，优先用这些工具，因为它们操作的是 Xcode 已打开的工程状态（编辑器文档、构建系统、scheme、destination、测试计划、运行中的应用）。
 
-### 前置条件
-
-1. Xcode 必须正在运行，且**本项目已在 Xcode 中打开**；否则先调用 `XcodeOpenWorkspace`。
-2. Xcode → Settings → Intelligence → Model Context Protocol → 勾选 “Allow external agents to use Xcode tools”。
-3. 首次连接需要用户在 Xcode 弹窗中批准该 agent。
-
 ### 关键约定
 
 - **必须传 `workspaceIdentifier`**：工作区一旦打开，绝大多数工具都要求显式传入（例：`workspace-yJlRtrakhS`）。不确定时先调用 `XcodeListWorkspaces()`；该 ID 随 Xcode 会话变化，不要写死在代码或脚本里，每次会话重新获取。
@@ -65,3 +59,4 @@ Code Mode 下通过 `tools.xcode.<ToolName>` 调用（共 54 个工具）。相�
 - 不要用外部 `delta`/`git` 进程：当前沙盒设计为纯原生 diff；如需接入，必须先打包自包含 helper。
 - 用 `XcodeUpdate` 改文件时，`oldString` / `newString` 用字面字符（`XcodeRead` 输出里的 `\\d` 对应参数里的 `\d`）。
 - 多个 Xcode 实例同时运行时，可用环境变量 `MCP_XCODE_PID` 固定连接目标。
+
