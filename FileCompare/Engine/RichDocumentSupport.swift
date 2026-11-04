@@ -1,7 +1,6 @@
 import AppKit
 import CoreFoundation
 import Foundation
-import HTMLToMarkdown
 
 /// Converts RTF and HTML documents into canonical Markdown source.
 ///
@@ -13,9 +12,9 @@ import HTMLToMarkdown
 ///
 /// RTF has no maintained pure-Swift parser. AppKit's `NSAttributedString`
 /// importer is the system-provided parser; it is asked to export HTML, and the
-/// same HTML-to-Markdown converter handles both formats. This keeps the RTF
-/// path free of a second parser and preserves bold, italic, lists, links and
-/// CJK text.
+/// same Kanna/libxml2 HTML-to-Markdown renderer handles both formats. This
+/// keeps the RTF path free of a second parser and preserves bold, italic,
+/// lists, links and CJK text without bundling a large HTML parser.
 enum RichDocumentSupport {
     /// HTML is parsed into a full DOM, so it gets a lower ceiling than plain
     /// text. The document still fits comfortably in memory for a 20 MiB cap.
@@ -104,17 +103,8 @@ enum RichDocumentSupport {
     private static func convertHTML(_ html: String) throws -> String {
         guard !html.isEmpty else { return "" }
 
-        let converter = Converter(
-            plugins: [
-                BasePlugin(),
-                CommonmarkPlugin(),
-                GFMPlugin(),
-                MediaRemovalPlugin()
-            ]
-        )
-
         do {
-            return try converter.convertString(html)
+            return try HTMLMarkdownRenderer.markdown(fromHTML: html)
         } catch {
             throw FileLoadError.documentConversionFailed
         }
@@ -180,28 +170,5 @@ enum RichDocumentSupport {
         guard cfEncoding != kCFStringEncodingInvalidId else { return nil }
         let nsEncoding = CFStringConvertEncodingToNSStringEncoding(cfEncoding)
         return String.Encoding(rawValue: nsEncoding)
-    }
-
-    // MARK: - Media
-
-    /// Removes images and embedded media before conversion.
-    ///
-    /// RTF attachments are exported by AppKit as `file://` image references,
-    /// and HTML images can point at remote resources. Neither is useful in a
-    /// text diff, and keeping them would leak local paths. The removal uses an
-    /// early priority because Commonmark registers `img` as inline at standard
-    /// priority.
-    private struct MediaRemovalPlugin: Plugin {
-        var name: String { "filecompare-media-removal" }
-
-        func initialize(conv: Converter) throws {
-            let mediaTags = [
-                "img", "picture", "source", "track", "video", "audio",
-                "canvas", "svg", "object", "embed", "template"
-            ]
-            for tag in mediaTags {
-                conv.Register.tagType(tag, .remove, priority: PriorityEarly)
-            }
-        }
     }
 }

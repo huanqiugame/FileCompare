@@ -41,6 +41,28 @@ struct RichDocumentSupportTests {
         #expect(markdown.contains("let value = 1"))
     }
 
+    @Test func htmlPreservesHardBreaksAndNestedLists() throws {
+        let markdown = try markdown(fromHTML: """
+        <p>One<br>Two</p>
+        <ul><li>Outer<ul><li>Inner</li></ul></li></ul>
+        """)
+
+        #expect(markdown.contains("One  \nTwo"))
+        #expect(markdown.contains("  - Inner"))
+
+        let file = try TextFileLoader.makeLoadedTextFile(
+            url: URL(fileURLWithPath: "/virtual/breaks.html"),
+            text: markdown,
+            encodingName: "HTML",
+            byteCount: 0,
+            sourceFormat: .html,
+            maximumLineLength: TextFileLoader.maximumSemanticLineLength
+        )
+        let rendered = MarkdownSupport.renderedFile(from: file)
+        #expect(rendered.lines.contains("One"))
+        #expect(rendered.lines.contains("Two"))
+    }
+
     @Test func htmlDropsHeadScriptsStylesAndMedia() throws {
         let markdown = try markdown(fromHTML: """
         <html>
@@ -75,7 +97,7 @@ struct RichDocumentSupportTests {
         """)
 
         #expect(markdown.contains("你好"))
-        #expect(markdown.contains("& &lt;tags&gt;"))
+        #expect(markdown.contains("& \\<tags\\>"))
         #expect(markdown.contains("\"quoted\""))
         #expect(markdown.contains("world"))
     }

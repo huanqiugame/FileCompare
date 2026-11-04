@@ -10,8 +10,6 @@
 
 ## 工程与文档
 
-- 评估 HTML 解析依赖的体积：`html-to-markdown-swift` 0.9.0 会引入 SwiftSoup，Release `.app` 从约 12MB 增至约 28MB。若要保持“小巧”定位，可评估改用 Kanna（系统 libxml2，约 250KB）并保留同一套规范 Markdown 输出，或退化为内容级文本提取。
-
 ## 已知问题
 
 - macOS 14–15 兼容路径尚未在对应系统实机验证；目前仅在 macOS 27 上完成构建与测试。旧系统使用普通半透明卡片替代 Liquid Glass，并用 `scrollPosition(id:)` 回退滚动位置记录。

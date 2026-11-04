@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		AA0000000000000000000101 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000301 /* Markdown */; };
-		AA0000000000000000000102 /* HTMLToMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000302 /* HTMLToMarkdown */; };
+		AA0000000000000000000102 /* Kanna in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000302 /* Kanna */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,7 +49,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				AA0000000000000000000101 /* Markdown in Frameworks */,
-				AA0000000000000000000102 /* HTMLToMarkdown in Frameworks */,
+				AA0000000000000000000102 /* Kanna in Frameworks */,
 			);
 		};
 		17E293A93090935A00C9ABAB /* Frameworks */ = {
@@ -98,7 +98,7 @@
 			name = FileCompare;
 			packageProductDependencies = (
 				AA0000000000000000000301 /* Markdown */,
-				AA0000000000000000000302 /* HTMLToMarkdown */,
+				AA0000000000000000000302 /* Kanna */,
 			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* FileCompare.app */;
@@ -155,7 +155,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				AA0000000000000000000201 /* XCRemoteSwiftPackageReference "swift-markdown" */,
-				AA0000000000000000000202 /* XCRemoteSwiftPackageReference "html-to-markdown-swift" */,
+				AA0000000000000000000202 /* XCRemoteSwiftPackageReference "Kanna" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
@@ -529,12 +529,12 @@
 				minimumVersion = 0.9.0;
 			};
 		};
-		AA0000000000000000000202 /* XCRemoteSwiftPackageReference "html-to-markdown-swift" */ = {
+		AA0000000000000000000202 /* XCRemoteSwiftPackageReference "Kanna" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/jaredhowland/html-to-markdown-swift.git";
+			repositoryURL = "https://github.com/tid-kijyun/Kanna.git";
 			requirement = {
-				kind = upToNextMinorVersion;
-				minimumVersion = 0.9.0;
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.1.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -545,10 +545,10 @@
 			package = AA0000000000000000000201 /* XCRemoteSwiftPackageReference "swift-markdown" */;
 			productName = Markdown;
 		};
-		AA0000000000000000000302 /* HTMLToMarkdown */ = {
+		AA0000000000000000000302 /* Kanna */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = AA0000000000000000000202 /* XCRemoteSwiftPackageReference "html-to-markdown-swift" */;
-			productName = HTMLToMarkdown;
+			package = AA0000000000000000000202 /* XCRemoteSwiftPackageReference "Kanna" */;
+			productName = Kanna;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

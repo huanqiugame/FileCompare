@@ -55,7 +55,7 @@ xcodebuild test \
 
 - `FileCompare/App`: AppKit 窗口/菜单外壳，SwiftUI 通过 `NSHostingController` 承载。
 - `FileCompare/Models`: diff 文档模型、比较会话、启动器状态、全局显示设置。
-- `FileCompare/Engine`: 原生 diff 引擎（Foundation `CollectionDifference`）、中文/英文 tokenizer、文件解码、自动重载监听、RTF/HTML → Markdown 转换（AppKit `NSAttributedString` + `html-to-markdown-swift`）、Markdown 语义规范化（基于 `swift-markdown`）。
+- `FileCompare/Engine`: 原生 diff 引擎（Foundation `CollectionDifference`）、中文/英文 tokenizer、文件解码、自动重载监听、RTF/HTML → Markdown 转换（AppKit `NSAttributedString` + Kanna/系统 libxml2 + 内置 `HTMLMarkdownRenderer`）、Markdown 语义规范化（基于 `swift-markdown`）。
 - `FileCompare/UI`: 启动器与比较页 SwiftUI 视图、玻璃标题、查找栏、状态视图。
 - `FileCompareTests`: Swift Testing 单元测试与离屏窗口快照。
 
