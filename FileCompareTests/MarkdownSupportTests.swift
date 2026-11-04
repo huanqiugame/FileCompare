@@ -162,7 +162,15 @@ struct MarkdownSupportTests {
             "> quoted ~~struck~~ text",
             "```swift",
             "| a | b |",
-            "plain text"
+            "plain text",
+            "*",
+            "_",
+            "text *",
+            "text _",
+            "**",
+            "__",
+            "a * b",
+            "a _ b"
         ]
 
         for sample in samples {

@@ -316,8 +316,13 @@ enum MarkdownCellStyler {
         at start: String.Index,
         delimiter: String
     ) -> Span? {
+        // `index(_:offsetBy:)` traps when the offset passes `endIndex`, so the
+        // remaining length must be checked before advancing. A line ending in
+        // a single `*` or `_` used to crash while probing for `**` / `__`.
+        guard text.distance(from: start, to: text.endIndex) >= delimiter.count else {
+            return nil
+        }
         let contentStart = text.index(start, offsetBy: delimiter.count)
-        guard contentStart <= text.endIndex else { return nil }
         guard let close = text.range(of: delimiter, range: contentStart..<text.endIndex) else {
             return nil
         }

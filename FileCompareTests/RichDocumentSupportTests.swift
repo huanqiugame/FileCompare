@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import FileCompare
@@ -39,6 +40,30 @@ struct RichDocumentSupportTests {
         #expect(markdown.contains("| A | B |"))
         #expect(markdown.contains("| 1 | 2 |"))
         #expect(markdown.contains("let value = 1"))
+    }
+
+    @Test func htmlAsteriskAtEndOfLineSurvivesStyling() throws {
+        // A required-field asterisk used to leave a lone `*` at the end of a
+        // canonical line, which crashed MarkdownCellStyler while it probed for
+        // a `**` delimiter.
+        let markdown = try markdown(fromHTML: "<p>姓名 <span>*</span></p>")
+        let file = try TextFileLoader.makeLoadedTextFile(
+            url: URL(fileURLWithPath: "/virtual/required.html"),
+            text: markdown,
+            encodingName: "HTML",
+            byteCount: 0,
+            sourceFormat: .html,
+            maximumLineLength: TextFileLoader.maximumSemanticLineLength
+        )
+        let rendered = MarkdownSupport.renderedFile(from: file)
+
+        #expect(rendered.lines == ["姓名 *"])
+        let styled = MarkdownCellStyler.attributedString(
+            try #require(rendered.lines.first),
+            fontSize: 14,
+            colorScheme: .light
+        )
+        #expect(String(styled.characters) == rendered.lines[0])
     }
 
     @Test func htmlPreservesHardBreaksAndNestedLists() throws {
