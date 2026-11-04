@@ -15,7 +15,8 @@ final class DiffTextRenderer {
         var documentRevision: Int
         var fontSize: CGFloat
         var colorScheme: ColorScheme
-        var isMarkdown: Bool
+        var leftUsesMarkdownStyling: Bool
+        var rightUsesMarkdownStyling: Bool
     }
 
     private var key: Key?
@@ -36,7 +37,8 @@ final class DiffTextRenderer {
             for: row,
             fontSize: key.fontSize,
             colorScheme: key.colorScheme,
-            isMarkdown: key.isMarkdown
+            leftUsesMarkdownStyling: key.leftUsesMarkdownStyling,
+            rightUsesMarkdownStyling: key.rightUsesMarkdownStyling
         )
         if cache.count >= cacheLimit {
             cache.removeAll(keepingCapacity: true)
@@ -49,7 +51,8 @@ final class DiffTextRenderer {
         for row: DiffRow,
         fontSize: CGFloat,
         colorScheme: ColorScheme,
-        isMarkdown: Bool
+        leftUsesMarkdownStyling: Bool,
+        rightUsesMarkdownStyling: Bool
     ) -> DiffRowPresentation {
         DiffRowPresentation(
             left: attributedText(
@@ -58,7 +61,7 @@ final class DiffTextRenderer {
                 side: .left,
                 fontSize: fontSize,
                 colorScheme: colorScheme,
-                isMarkdown: isMarkdown
+                isMarkdown: leftUsesMarkdownStyling
             ),
             right: attributedText(
                 for: row.right,
@@ -66,7 +69,7 @@ final class DiffTextRenderer {
                 side: .right,
                 fontSize: fontSize,
                 colorScheme: colorScheme,
-                isMarkdown: isMarkdown
+                isMarkdown: rightUsesMarkdownStyling
             )
         )
     }

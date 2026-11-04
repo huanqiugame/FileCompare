@@ -13,6 +13,9 @@ struct LoadedTextFile: Identifiable, Hashable, Sendable {
     let encodingName: String
     let byteCount: Int
     let hadFinalNewline: Bool
+    /// How the file was decoded. Rich documents are converted to Markdown
+    /// source before this value is created.
+    var sourceFormat: DocumentFormat = .plainText
 
     /// For Markdown-rendered files, marks the first line of every top-level
     /// block. The diff view uses it to leave breathing room between blocks.

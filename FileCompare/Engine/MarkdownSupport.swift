@@ -70,6 +70,7 @@ enum MarkdownSupport {
             encodingName: file.encodingName,
             byteCount: file.byteCount,
             hadFinalNewline: !content.lines.isEmpty,
+            sourceFormat: file.sourceFormat,
             lineBlockStarts: content.blockStarts
         )
     }

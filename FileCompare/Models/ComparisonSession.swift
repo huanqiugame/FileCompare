@@ -29,8 +29,16 @@ final class ComparisonSession: Identifiable {
     var rightURL: URL?
     var document: DiffDocument?
     var options = DiffOptions()
-    /// Whether both sides are Markdown and rendering is enabled for this session.
-    private(set) var isRenderingMarkdown = false
+    /// Whether each side is shown with Markdown styling. Rich documents are
+    /// converted to canonical Markdown, so only the converted side needs the
+    /// styling flag in a mixed rich-text/plain-text comparison.
+    private(set) var leftUsesMarkdownStyling = false
+    private(set) var rightUsesMarkdownStyling = false
+    /// Whether any side is currently rendered as semantic text. Kept as a
+    /// compatibility convenience for views and menu validation.
+    var isRenderingMarkdown: Bool {
+        leftUsesMarkdownStyling || rightUsesMarkdownStyling
+    }
     var isLoading = false
     var errorMessage: String?
     var isFindBarVisible = false
@@ -142,8 +150,11 @@ final class ComparisonSession: Identifiable {
 
         let anchor = captureAnchor()
         let requestedOptions = options
+        let leftFormat = DocumentFormat.detect(leftURL)
+        let rightFormat = DocumentFormat.detect(rightURL)
         let renderMarkdown = markdownRenderingEnabled
-            && MarkdownSupport.shouldRender(left: leftURL, right: rightURL)
+            && leftFormat.isSemanticDocument
+            && rightFormat.isSemanticDocument
         let token = UUID()
         activeLoadToken = token
         loadTask?.cancel()
@@ -158,6 +169,8 @@ final class ComparisonSession: Identifiable {
             let outcome = await Self.performLoad(
                 left: leftFile,
                 right: rightFile,
+                leftFormat: leftFormat,
+                rightFormat: rightFormat,
                 options: requestedOptions,
                 renderMarkdown: renderMarkdown
             )
@@ -221,6 +234,10 @@ final class ComparisonSession: Identifiable {
         let oldLeftText = leftTextFile
         leftTextFile = rightTextFile
         rightTextFile = oldLeftText
+
+        let oldLeftStyling = leftUsesMarkdownStyling
+        leftUsesMarkdownStyling = rightUsesMarkdownStyling
+        rightUsesMarkdownStyling = oldLeftStyling
 
         guard let document else {
             load()
@@ -511,12 +528,13 @@ final class ComparisonSession: Identifiable {
 
     private func apply(_ outcome: LoadOutcome, anchor: ScrollAnchor?) {
         switch outcome {
-        case .success(let leftFile, let rightFile, let document, let renderedMarkdown):
+        case .success(let leftFile, let rightFile, let document, let leftStyling, let rightStyling):
             AppLog.comparison.notice(
-                "Loaded \(leftFile.displayName, privacy: .public) (\(leftFile.lineCount) lines) vs \(rightFile.displayName, privacy: .public) (\(rightFile.lineCount) lines), \(document.changeGroups.count) change group(s)\(renderedMarkdown ? ", Markdown rendering" : "")"
+                "Loaded \(leftFile.displayName, privacy: .public) [\(leftFile.sourceFormat.rawValue, privacy: .public)] (\(leftFile.lineCount) lines) vs \(rightFile.displayName, privacy: .public) [\(rightFile.sourceFormat.rawValue, privacy: .public)] (\(rightFile.lineCount) lines), \(document.changeGroups.count) change group(s)\(leftStyling || rightStyling ? ", semantic rendering" : "")"
             )
             isLoading = false
-            isRenderingMarkdown = renderedMarkdown
+            leftUsesMarkdownStyling = leftStyling
+            rightUsesMarkdownStyling = rightStyling
             leftTextFile = leftFile
             rightTextFile = rightFile
             self.document = document
@@ -635,29 +653,44 @@ final class ComparisonSession: Identifiable {
     private nonisolated static func performLoad(
         left: SecurityScopedFile,
         right: SecurityScopedFile,
+        leftFormat: DocumentFormat,
+        rightFormat: DocumentFormat,
         options: DiffOptions,
         renderMarkdown: Bool
     ) async -> LoadOutcome {
         do {
             try Task.checkCancellation()
-            let leftFile = try TextFileLoader.read(url: left.url)
+            let leftFile = try DocumentLoader.read(url: left.url, format: leftFormat)
             try Task.checkCancellation()
-            let rightFile = try TextFileLoader.read(url: right.url)
+            let rightFile = try DocumentLoader.read(url: right.url, format: rightFormat)
             try Task.checkCancellation()
 
-            let leftComparable = renderMarkdown
+            // Rich documents are always converted to Markdown; the Markdown
+            // setting only controls whether a Markdown source file is parsed
+            // semantically instead of compared verbatim. A rich/plain pair
+            // keeps the plain side unstyled, so only converted sides ask for
+            // Markdown styling.
+            let bothSemantic = leftFormat.isSemanticDocument && rightFormat.isSemanticDocument
+            let normalizeSemanticText = renderMarkdown && bothSemantic
+
+            let leftComparable = (normalizeSemanticText || leftFormat.isRichDocument)
                 ? MarkdownSupport.renderedFile(from: leftFile)
                 : leftFile
-            let rightComparable = renderMarkdown
+            let rightComparable = (normalizeSemanticText || rightFormat.isRichDocument)
                 ? MarkdownSupport.renderedFile(from: rightFile)
                 : rightFile
+
+            let leftStyling = leftFormat.isRichDocument
+                || (normalizeSemanticText && leftFormat == .markdown)
+            let rightStyling = rightFormat.isRichDocument
+                || (normalizeSemanticText && rightFormat == .markdown)
 
             let document = try DiffEngine.compare(
                 left: leftComparable,
                 right: rightComparable,
                 options: options
             )
-            return .success(leftFile, rightFile, document, renderMarkdown)
+            return .success(leftFile, rightFile, document, leftStyling, rightStyling)
         } catch is CancellationError {
             return .cancelled
         } catch let error as FileLoadError {
@@ -683,6 +716,10 @@ final class ComparisonSession: Identifiable {
             return String(localized: "error.binary", defaultValue: "Binary file is not supported")
         case .unsupportedEncoding:
             return String(localized: "error.encoding", defaultValue: "Unsupported text encoding")
+        case .unsupportedDocument:
+            return String(localized: "error.unsupportedDocument", defaultValue: "Unsupported document format")
+        case .documentConversionFailed:
+            return String(localized: "error.documentConversionFailed", defaultValue: "Cannot convert this document to comparable text")
         case .emptySelection:
             return String(localized: "error.noFile", defaultValue: "No file selected")
         }
@@ -705,7 +742,7 @@ private struct PendingReplacement {
 }
 
 private enum LoadOutcome: Sendable {
-    case success(LoadedTextFile, LoadedTextFile, DiffDocument, Bool)
+    case success(LoadedTextFile, LoadedTextFile, DiffDocument, Bool, Bool)
     case failure(String)
     case cancelled
 }

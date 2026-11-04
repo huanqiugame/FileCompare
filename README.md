@@ -17,6 +17,7 @@
 - 重新设计的比较界面：主要功能全部浓缩到标题栏，为内容预留最大空间。
 - 提供忽略空白、忽略大小写、查找、差异跳转、重新载入、自动重新载入、行号开关、字号调整、交换左右等操作。
 - 比较一对 Markdown 文件时，可按 CommonMark/GFM 语法解析并比较渲染后的结构：标题写法、强调标记、列表符号、代码块形式和段落换行等纯格式差异不再被报告。可在「比较」菜单中用 `⌘⇧M` 开关。
+- 支持比较 RTF 与 HTML 文档：先转换为规范 Markdown，再按语义比较。粗体/斜体、HTML 标题、列表、表格、链接可被识别；脚本、样式、图片和嵌入媒体会被忽略。
 - 支持文件修改后自动重新读取并尽量保留阅读位置。
 
 ## 系统要求
@@ -54,13 +55,14 @@ xcodebuild test \
 
 - `FileCompare/App`: AppKit 窗口/菜单外壳，SwiftUI 通过 `NSHostingController` 承载。
 - `FileCompare/Models`: diff 文档模型、比较会话、启动器状态、全局显示设置。
-- `FileCompare/Engine`: 原生 diff 引擎（Foundation `CollectionDifference`）、中文/英文 tokenizer、文件解码、自动重载监听、Markdown 语义规范化（基于 `swift-markdown`）。
+- `FileCompare/Engine`: 原生 diff 引擎（Foundation `CollectionDifference`）、中文/英文 tokenizer、文件解码、自动重载监听、RTF/HTML → Markdown 转换（AppKit `NSAttributedString` + `html-to-markdown-swift`）、Markdown 语义规范化（基于 `swift-markdown`）。
 - `FileCompare/UI`: 启动器与比较页 SwiftUI 视图、玻璃标题、查找栏、状态视图。
 - `FileCompareTests`: Swift Testing 单元测试与离屏窗口快照。
 
 ## 限制
 
-- **.doc(x)/.pdf/.rtf/.html等**：暂不支持，可期待后续版本。
+- **.doc(x)/.pdf/.rtfd等**：暂不支持，可期待后续版本。RTF/HTML 已支持，但 `.rtfd` 目录包不在当前范围内。
+- **富文本语义**：图片和嵌入媒体会被忽略；RTF 没有语义标题，标题层级不会参与比较；HTML 的 CSS 隐藏内容、颜色、字体等纯样式信息也不会参与比较。
 - **只读**：暂不提供编辑或保存功能。
-- **大文件**：超过 50 MiB、200,000 行或单行 50,000 字节的文件会被拒绝。
-- **编码识别**：没有 BOM 的编码、极端短文本或罕见字符可能被误判。
+- **大文件**：纯文本超过 50 MiB、200,000 行或单行 50,000 字节会被拒绝；HTML 上限 20 MiB，RTF 上限 30 MiB。
+- **编码识别**：没有 BOM 的编码、极端短文本或罕见字符可能被误判。HTML 会优先读取 `<meta charset>`。

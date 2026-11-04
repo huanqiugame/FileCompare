@@ -8,5 +8,7 @@ enum FileLoadError: Error, Equatable, Sendable {
     case lineTooLong(length: Int)
     case binary
     case unsupportedEncoding
+    case unsupportedDocument
+    case documentConversionFailed
     case emptySelection
 }

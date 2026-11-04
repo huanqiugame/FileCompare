@@ -51,7 +51,8 @@ struct DiffContentView: View {
                 documentRevision: session.documentRevision,
                 fontSize: fontSize,
                 colorScheme: colorScheme,
-                isMarkdown: session.isRenderingMarkdown
+                leftUsesMarkdownStyling: session.leftUsesMarkdownStyling,
+                rightUsesMarkdownStyling: session.rightUsesMarkdownStyling
             )
             let currentMatch = session.currentMatch
 

@@ -9,7 +9,7 @@
 - 源码：
   - `FileCompare/App`：应用入口、AppDelegate、窗口控制器、菜单、协调器
   - `FileCompare/Models`：Diff 模型、ComparisonSession、LauncherModel、AppSettings
-  - `FileCompare/Engine`：原生 diff、Tokenizer、TextFileLoader、FileChangeMonitor、Markdown 语义规范化（依赖 Swift Package `swift-markdown` 0.9.0）
+  - `FileCompare/Engine`：原生 diff、Tokenizer、TextFileLoader、DocumentLoader、FileChangeMonitor、RTF/HTML → Markdown 转换（AppKit `NSAttributedString` + Swift Package `html-to-markdown-swift` 0.9.0）、Markdown 语义规范化（依赖 Swift Package `swift-markdown` 0.9.0）
   - `FileCompare/UI`：启动器与比较页 SwiftUI 视图
   - `FileCompare/Resources/Localizable.xcstrings`：中英文
   - `FileCompareTests`：单元测试与离屏窗口快照
@@ -54,6 +54,7 @@ Code Mode 下通过 `tools.xcode.<ToolName>` 调用（共 54 个工具）。相�
 - 修改后验证顺序：`XcodeRefreshCodeIssuesInFile` 查诊断 → `BuildProject` 确认编译 → `RunAllTests` → 需要时 `RunProject` 并读 `GetConsoleOutput`。
 - 正常构建用 `BuildProject(buildForTesting: false)`；测试构建用 `buildForTesting: true`。测试构建会注入测试专用 entitlements，不能据此判断沙盒实际权限。
 - 命令行 `xcodebuild test` 前先 `killall FileCompare`，否则运行中的 App 会与测试 host 冲突，导致测试 host 提前退出、大量测试显示 0.000 秒失败。
+- 若测试 host 报 `The test runner hung before establishing connection`，在命令行追加 `CODE_SIGN_INJECT_BASE_ENTITLEMENTS=YES ENABLE_HARDENED_RUNTIME=NO`；这是测试注入所需，发布构建仍使用项目原本的 Hardened Runtime 设置。
 - App 使用 `AppLog`（OSLog subsystem `com.huanqiu.FileCompare`）记录打开事件、比较加载与失败；排查 Finder 打开/自动重载可用 `/usr/bin/log stream --predicate 'subsystem == "com.huanqiu.FileCompare"'`。
 - 窗口可用 `CGWindowListCopyWindowInfo(.optionAll, ...)` 检查标题、大小与位置，无需屏幕录制权限。
 - 不要用外部 `delta`/`git` 进程：当前沙盒设计为纯原生 diff；如需接入，必须先打包自包含 helper。

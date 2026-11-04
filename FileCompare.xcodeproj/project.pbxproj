@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		AA0000000000000000000101 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000301 /* Markdown */; };
+		AA0000000000000000000102 /* HTMLToMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000302 /* HTMLToMarkdown */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,6 +49,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				AA0000000000000000000101 /* Markdown in Frameworks */,
+				AA0000000000000000000102 /* HTMLToMarkdown in Frameworks */,
 			);
 		};
 		17E293A93090935A00C9ABAB /* Frameworks */ = {
@@ -96,6 +98,7 @@
 			name = FileCompare;
 			packageProductDependencies = (
 				AA0000000000000000000301 /* Markdown */,
+				AA0000000000000000000302 /* HTMLToMarkdown */,
 			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* FileCompare.app */;
@@ -152,6 +155,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				AA0000000000000000000201 /* XCRemoteSwiftPackageReference "swift-markdown" */,
+				AA0000000000000000000202 /* XCRemoteSwiftPackageReference "html-to-markdown-swift" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
@@ -525,6 +529,14 @@
 				minimumVersion = 0.9.0;
 			};
 		};
+		AA0000000000000000000202 /* XCRemoteSwiftPackageReference "html-to-markdown-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jaredhowland/html-to-markdown-swift.git";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.9.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -532,6 +544,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AA0000000000000000000201 /* XCRemoteSwiftPackageReference "swift-markdown" */;
 			productName = Markdown;
+		};
+		AA0000000000000000000302 /* HTMLToMarkdown */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA0000000000000000000202 /* XCRemoteSwiftPackageReference "html-to-markdown-swift" */;
+			productName = HTMLToMarkdown;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

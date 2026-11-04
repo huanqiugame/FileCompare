@@ -18,6 +18,15 @@ enum TextFileLoader {
     /// of megabytes; documents keep well below this limit.
     static let maximumLineLength = 50_000
 
+    /// Relaxed line limit for text produced by a semantic conversion.
+    ///
+    /// Markdown rendering intentionally joins a paragraph into one line, and
+    /// rich documents commonly contain paragraphs that are far longer than a
+    /// hand-written source line. The diff engine already skips word-level
+    /// diffing above 8 KB, so this only bounds pathological input without
+    /// rejecting ordinary documents.
+    static let maximumSemanticLineLength = 500_000
+
     /// Number of leading bytes inspected when scoring BOM-less UTF-16 and
     /// measuring the control-byte ratio.
     static let binarySniffByteCount = 8 * 1024
@@ -70,7 +79,7 @@ enum TextFileLoader {
         return try decode(data: data, url: url)
     }
 
-    private static func fileStatus(at url: URL) throws -> stat {
+    static func fileStatus(at url: URL) throws -> stat {
         var info = stat()
         let result = url.withUnsafeFileSystemRepresentation { path -> Int32 in
             guard let path else { return -1 }
@@ -100,7 +109,28 @@ enum TextFileLoader {
         }
 
         let decoded = try decodeText(data)
-        let text = normalizeLineEndings(decoded.text)
+        return try makeLoadedTextFile(
+            url: url,
+            text: decoded.text,
+            encodingName: decoded.encodingName,
+            byteCount: data.count,
+            sourceFormat: .plainText
+        )
+    }
+
+    /// Builds a `LoadedTextFile` from already-decoded or already-converted text.
+    ///
+    /// Rich-document loaders use this after converting RTF/HTML to Markdown so
+    /// line splitting, normalization and limits stay shared with plain text.
+    static func makeLoadedTextFile(
+        url: URL,
+        text sourceText: String,
+        encodingName: String,
+        byteCount: Int,
+        sourceFormat: DocumentFormat,
+        maximumLineLength: Int = TextFileLoader.maximumLineLength
+    ) throws -> LoadedTextFile {
+        let text = normalizeLineEndings(sourceText)
         let hadFinalNewline = text.utf8.last == 0x0A
 
         // Split on the UTF-8 newline byte instead of walking Characters. This
@@ -130,18 +160,19 @@ enum TextFileLoader {
             displayName: displayName(for: url),
             text: text,
             lines: lines,
-            encodingName: decoded.encodingName,
-            byteCount: data.count,
-            hadFinalNewline: hadFinalNewline
+            encodingName: encodingName,
+            byteCount: byteCount,
+            hadFinalNewline: hadFinalNewline,
+            sourceFormat: sourceFormat
         )
     }
 
-    private struct DecodedText {
+    struct DecodedText {
         var text: String
         var encodingName: String
     }
 
-    private static func decodeText(_ data: Data) throws -> DecodedText {
+    static func decodeText(_ data: Data) throws -> DecodedText {
         let bom = [UInt8](data.prefix(4))
 
         if bom.count >= 3, bom[0] == 0xEF, bom[1] == 0xBB, bom[2] == 0xBF {

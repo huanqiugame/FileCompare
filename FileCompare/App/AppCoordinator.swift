@@ -206,10 +206,13 @@ final class AppCoordinator: NSObject, NSMenuItemValidation {
         panel.prompt = String(localized: "panel.open_file.prompt", defaultValue: "Open")
         panel.message = String(
             localized: "panel.open_file.message",
-            defaultValue: "Choose a text or Markdown file."
+            defaultValue: "Choose a text, Markdown, RTF, or HTML file."
         )
 
-        var types: [UTType] = [.plainText, .text, .sourceCode, .json, .commaSeparatedText]
+        var types: [UTType] = [
+            .plainText, .text, .sourceCode, .json, .commaSeparatedText,
+            .rtf, .html
+        ]
         if let markdown = UTType(filenameExtension: "md") {
             types.append(markdown)
         }

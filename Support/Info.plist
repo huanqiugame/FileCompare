@@ -40,6 +40,8 @@
 				<string>public.plain-text</string>
 				<string>public.source-code</string>
 				<string>net.daringfireball.markdown</string>
+				<string>public.rtf</string>
+				<string>public.html</string>
 			</array>
 		</dict>
 	</array>

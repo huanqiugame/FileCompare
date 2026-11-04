@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 
@@ -165,6 +166,172 @@ struct ComparisonSessionTests {
         #expect(session.document?.left.lines == ["# Title"])
 
         session.setAutoReload(false)
+    }
+
+    @Test func htmlPairComparesConvertedStructure() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FileCompareSessionTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let left = directory.appendingPathComponent("left.html")
+        let right = directory.appendingPathComponent("right.html")
+        try "<h1>Title</h1><p>A <b>small</b> paragraph.</p>".write(
+            to: left, atomically: true, encoding: .utf8
+        )
+        try "<h1>Title</h1><p>A <strong>small</strong> paragraph.</p>".write(
+            to: right, atomically: true, encoding: .utf8
+        )
+
+        let session = ComparisonSession(
+            leftURL: left,
+            rightURL: right,
+            settings: AppSettings.shared
+        )
+        session.load()
+        await waitForLoad(session)
+
+        #expect(session.document?.isIdentical == true)
+        #expect(session.leftUsesMarkdownStyling)
+        #expect(session.rightUsesMarkdownStyling)
+        #expect(session.isRenderingMarkdown)
+        #expect(!session.supportsMarkdownRendering)
+        #expect(session.document?.left.lines == ["# Title", "A **small** paragraph."])
+
+        session.setAutoReload(false)
+    }
+
+    @Test func htmlPairReportsContentChanges() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FileCompareSessionTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let left = directory.appendingPathComponent("left.html")
+        let right = directory.appendingPathComponent("right.html")
+        try "<p>Old text.</p>".write(to: left, atomically: true, encoding: .utf8)
+        try "<p>New text.</p>".write(to: right, atomically: true, encoding: .utf8)
+
+        let session = ComparisonSession(
+            leftURL: left,
+            rightURL: right,
+            settings: AppSettings.shared
+        )
+        session.load()
+        await waitForLoad(session)
+
+        #expect(session.document?.isIdentical == false)
+        #expect(session.changeCount == 1)
+
+        session.setAutoReload(false)
+    }
+
+    @Test func rtfPairDetectsFormattingChanges() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FileCompareSessionTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let left = directory.appendingPathComponent("left.rtf")
+        let right = directory.appendingPathComponent("right.rtf")
+        try writeRTF("Hello world\n", boldRange: NSRange(location: 0, length: 5), to: left)
+        try writeRTF("Hello world\n", boldRange: nil, to: right)
+
+        let session = ComparisonSession(
+            leftURL: left,
+            rightURL: right,
+            settings: AppSettings.shared
+        )
+        session.load()
+        await waitForLoad(session)
+
+        let document = try #require(session.document)
+        #expect(!document.isIdentical)
+        #expect(document.changeGroups.count >= 1)
+        #expect(session.leftUsesMarkdownStyling)
+        #expect(session.rightUsesMarkdownStyling)
+
+        session.setAutoReload(false)
+    }
+
+    @Test func richAndPlainTextPairStylesOnlyConvertedSide() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FileCompareSessionTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let left = directory.appendingPathComponent("left.html")
+        let right = directory.appendingPathComponent("right.txt")
+        try "<p>alpha</p>".write(to: left, atomically: true, encoding: .utf8)
+        try "alpha\n".write(to: right, atomically: true, encoding: .utf8)
+
+        let session = ComparisonSession(
+            leftURL: left,
+            rightURL: right,
+            settings: AppSettings.shared
+        )
+        session.load()
+        await waitForLoad(session)
+
+        #expect(session.document?.isIdentical == true)
+        #expect(session.leftUsesMarkdownStyling)
+        #expect(!session.rightUsesMarkdownStyling)
+        #expect(session.isRenderingMarkdown)
+
+        session.swap()
+        #expect(!session.leftUsesMarkdownStyling)
+        #expect(session.rightUsesMarkdownStyling)
+
+        session.setAutoReload(false)
+    }
+
+    @Test func htmlAndMarkdownPairComparesSemantically() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FileCompareSessionTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let left = directory.appendingPathComponent("left.html")
+        let right = directory.appendingPathComponent("right.md")
+        try "<h1>Title</h1><p>A <strong>small</strong> paragraph.</p>".write(
+            to: left, atomically: true, encoding: .utf8
+        )
+        try "# Title\n\nA **small** paragraph.\n".write(
+            to: right, atomically: true, encoding: .utf8
+        )
+
+        let suiteName = "FileCompareSessionTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let settings = AppSettings(defaults: defaults)
+        settings.renderMarkdown = true
+
+        let session = ComparisonSession(leftURL: left, rightURL: right, settings: settings)
+        session.load()
+        await waitForLoad(session)
+
+        #expect(session.document?.isIdentical == true)
+        #expect(session.leftUsesMarkdownStyling)
+        #expect(session.rightUsesMarkdownStyling)
+        #expect(!session.supportsMarkdownRendering)
+
+        session.setAutoReload(false)
+    }
+
+    private func writeRTF(_ text: String, boldRange: NSRange?, to url: URL) throws {
+        let attributed = NSMutableAttributedString(string: text)
+        if let boldRange {
+            attributed.addAttribute(
+                .font,
+                value: NSFont.boldSystemFont(ofSize: 12),
+                range: boldRange
+            )
+        }
+        let data = try attributed.data(
+            from: NSRange(location: 0, length: attributed.length),
+            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
+        )
+        try data.write(to: url, options: .atomic)
     }
 
     @Test func ignoreWhitespaceReloadsWithFewerChanges() async throws {
